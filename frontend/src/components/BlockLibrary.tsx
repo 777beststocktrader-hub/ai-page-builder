@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Sparkles, Loader2, Search, LayoutTemplate, List, EyeOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { Plus, Sparkles, Loader2, Search, LayoutTemplate, List, EyeOff, ChevronUp, ChevronDown, Trash2, Link } from 'lucide-react';
 import BLOCK_DEFS from '../blocks/blockDefs';
 import { usePageStore } from '../store/pageStore';
-import { generateFullPage, generateBlockContent } from '../lib/api';
+import { generateFullPage, generateBlockContent, importFromUrl } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const CATEGORIES = ['Navigation', 'Hero', 'Content', 'Media', 'Social Proof', 'Conversion', 'Layout', 'Social', 'CTA', 'Footer'];
@@ -133,6 +133,9 @@ export default function BlockLibrary() {
   const [polishing, setPolishing] = useState(false);
   const [polishProgress, setPolishProgress] = useState(0);
   const [tab, setTab] = useState<'blocks' | 'templates' | 'outline'>('blocks');
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [showUrlImport, setShowUrlImport] = useState(false);
 
   const handleLoadTemplate = (template: typeof PAGE_TEMPLATES[0]) => {
     if (page.blocks.length > 0 && !confirm(`Replace current page with "${template.name}" template?`)) return;
@@ -209,6 +212,26 @@ export default function BlockLibrary() {
       setPolishing(false);
       setPolishProgress(0);
     }
+  };
+
+  const handleImportUrl = async () => {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    const toastId = toast.loading('Extracting content from URL…');
+    try {
+      const { pageGoal: goal, companyName, tagline } = await importFromUrl(importUrl.trim());
+      if (goal) {
+        setPageGoal(goal);
+        toast.success(`Extracted: "${goal.slice(0, 60)}…"`, { id: toastId, duration: 4000 });
+        setShowUrlImport(false);
+        setImportUrl('');
+      } else {
+        toast.error('Could not extract page info', { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'URL import failed', { id: toastId });
+    }
+    setImporting(false);
   };
 
   const handleGeneratePage = async () => {
@@ -288,10 +311,39 @@ export default function BlockLibrary() {
       {tab === 'blocks' && <>
       {/* AI Page Generator */}
       <div className="p-3 border-b border-slate-700">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-          <Sparkles size={11} className="text-indigo-400" />
-          AI Page Generator
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Sparkles size={11} className="text-indigo-400" />
+            AI Page Generator
+          </p>
+          <button
+            onClick={() => setShowUrlImport(!showUrlImport)}
+            title="Import page goal from website URL"
+            className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-all ${showUrlImport ? 'text-indigo-300 bg-indigo-900/40' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            <Link size={10} /> Import URL
+          </button>
+        </div>
+        {showUrlImport && (
+          <div className="mb-2 flex gap-1">
+            <input
+              type="url"
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleImportUrl(); }}
+              placeholder="https://yourwebsite.com"
+              className="flex-1 bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-600 focus:border-indigo-500 focus:outline-none placeholder-slate-600 min-w-0"
+            />
+            <button
+              onClick={handleImportUrl}
+              disabled={importing || !importUrl.trim()}
+              className="px-2.5 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs rounded-lg flex items-center gap-1 flex-shrink-0"
+            >
+              {importing ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+              {importing ? '' : 'Get'}
+            </button>
+          </div>
+        )}
         <textarea
           value={pageGoal}
           onChange={(e) => setPageGoal(e.target.value)}

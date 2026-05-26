@@ -75,6 +75,14 @@ export async function deleteSite(slug: string): Promise<void> {
   await api.delete(`/my-sites/${slug}`);
 }
 
+export async function importFromUrl(
+  url: string
+): Promise<{ pageGoal: string; companyName: string; tagline: string }> {
+  const { data } = await api.post('/ai/import-url', { url });
+  if (!data.success) throw new Error(data.error || 'Import failed');
+  return { pageGoal: data.pageGoal || '', companyName: data.companyName || '', tagline: data.tagline || '' };
+}
+
 export async function polishPage(
   blocks: Array<{ type: string; data: Record<string, any> }>,
   pageGoal?: string,

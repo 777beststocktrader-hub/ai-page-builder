@@ -547,6 +547,70 @@ Rules: Headlines under 12 words. Be specific, not generic. Each variant must be 
   }
 });
 
+// ── AI Page Import from URL ───────────────────────────────────────────────
+app.post('/api/ai/import-url', async (req, res) => {
+  const { url } = req.body;
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ success: false, error: 'url required' });
+  }
+  try {
+    // Fetch the page content
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AIPageBuilder/1.0)' },
+    });
+    clearTimeout(timeout);
+    const html = await response.text();
+
+    // Extract key text from HTML
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    // Strip all HTML tags
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 3000);
+
+    const pageInfo = [
+      titleMatch?.[1] ? `Title: ${titleMatch[1].trim()}` : '',
+      descMatch?.[1] ? `Meta description: ${descMatch[1].trim()}` : '',
+      h1Match?.[1] ? `H1: ${h1Match[1].trim()}` : '',
+      `Content: ${text}`,
+    ].filter(Boolean).join('\n');
+
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      system: 'You are an expert at extracting business information from websites. Respond with JSON only.',
+      messages: [{
+        role: 'user',
+        content: `Extract the key business information from this website content and generate a page goal description.
+
+${pageInfo}
+
+Respond with JSON:
+{"pageGoal":"One sentence describing what this business does and who it serves","companyName":"Company or brand name","tagline":"Key value proposition or tagline"}`,
+      }],
+    });
+
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '{}';
+    const match = raw.match(/\{[\s\S]*\}/);
+    const data = match ? JSON.parse(match[0]) : {};
+    res.json({ success: true, pageGoal: data.pageGoal || '', companyName: data.companyName || '', tagline: data.tagline || '' });
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      return res.status(408).json({ success: false, error: 'Request timed out. The website may be blocking scrapers.' });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── AI Polish Page (coherence rewrite) ───────────────────────────────────
 app.post('/api/ai/polish-page', async (req, res) => {
   const { blocks, pageGoal, tone = 'professional' } = req.body;
