@@ -15,7 +15,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X } from 'lucide-react';
+import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown } from 'lucide-react';
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
 import { Block } from '../types';
@@ -29,10 +29,52 @@ function getSmartSuggestions(existingTypes: string[]): string[] {
   return missing.slice(0, 6);
 }
 
+function ContextMenu({ x, y, block, onClose }: { x: number; y: number; block: Block; onClose: () => void }) {
+  const { deleteBlock, duplicateBlock, moveBlock, toggleBlockVisibility, lockBlock, page } = usePageStore();
+  const def = getBlockDef(block.type);
+  const idx = page.blocks.findIndex(b => b.id === block.id);
+
+  const item = (icon: React.ReactNode, label: string, onClick: () => void, danger?: boolean) => (
+    <button
+      key={label}
+      onClick={() => { onClick(); onClose(); }}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs text-left transition-colors rounded-md ${danger ? 'text-red-400 hover:bg-red-950/40' : 'text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+
+  return (
+    <div
+      className="fixed z-[200] bg-slate-800 border border-slate-600 rounded-xl shadow-2xl p-1.5 w-48"
+      style={{ left: x, top: y }}
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="px-3 py-1.5 border-b border-slate-700 mb-1">
+        <p className="text-xs font-semibold text-slate-400">{def?.emoji} {def?.label}</p>
+      </div>
+      {item(<Copy size={12} />, 'Duplicate', () => duplicateBlock(block.id))}
+      {item(<ChevronUp size={12} />, 'Move Up', () => idx > 0 && moveBlock(block.id, page.blocks[idx - 1].id), false)}
+      {item(<ChevronDown size={12} />, 'Move Down', () => idx < page.blocks.length - 1 && moveBlock(block.id, page.blocks[idx + 1].id), false)}
+      <div className="border-t border-slate-700 my-1" />
+      {item(block.hidden ? <EyeOff size={12} /> : <EyeOff size={12} />, block.hidden ? 'Show Block' : 'Hide Block', () => toggleBlockVisibility(block.id))}
+      {item(block.locked ? <Unlock size={12} /> : <Lock size={12} />, block.locked ? 'Unlock Block' : 'Lock Block', () => lockBlock(block.id))}
+      {item(<Code size={12} />, 'Copy HTML', () => {
+        const html = def?.exportHtml(block.data) || '';
+        navigator.clipboard.writeText(html).then(() => toast.success('Block HTML copied!'));
+      })}
+      <div className="border-t border-slate-700 my-1" />
+      {item(<Trash2 size={12} />, 'Delete Block', () => { deleteBlock(block.id); }, true)}
+    </div>
+  );
+}
+
 function SortableBlock({ block, selected, existingTypes }: { block: Block; selected: boolean; existingTypes: string[] }) {
-  const { selectBlock, deleteBlock, duplicateBlock, addBlock, updateBlock, pageGoal } = usePageStore();
+  const { selectBlock, deleteBlock, duplicateBlock, addBlock, updateBlock, pageGoal, moveBlock, toggleBlockVisibility, lockBlock, page } = usePageStore();
   const def = getBlockDef(block.type);
   const [rewriting, setRewriting] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const handleAiRewrite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -81,8 +123,17 @@ function SortableBlock({ block, selected, existingTypes }: { block: Block; selec
       style={style}
       data-block-id={block.id}
       className={`relative group canvas-block-enter ${selected ? 'block-selected' : 'hover:block-hover-outline'}`}
-      onClick={(e) => { e.stopPropagation(); selectBlock(block.id); }}
+      onClick={(e) => { e.stopPropagation(); selectBlock(block.id); if (contextMenu) setContextMenu(null); }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY }); selectBlock(block.id); }}
     >
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          block={block}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
       {/* Block Controls */}
       <div className={`absolute top-2 right-2 z-50 flex items-center gap-1 transition-opacity ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
         <div
