@@ -66,17 +66,34 @@ export function exportPageToHtml(page: Page, theme?: Theme): string {
     section[style*="padding:80px"], section[style*="padding:96px"], section[style*="padding:112px"] { padding-top: calc(var(--val, 80px) * ${spacingScale}) !important; padding-bottom: calc(var(--val, 80px) * ${spacingScale}) !important; }`
     : '';
 
+  // Build JSON-LD structured data
+  const heroBlock = page.blocks.find(b => b.type === 'hero');
+  const navBlock = page.blocks.find(b => b.type === 'navbar');
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": page.title,
+    "description": page.description || heroBlock?.data?.subheadline || page.title,
+    ...(navBlock?.data?.brand ? { "publisher": { "@type": "Organization", "name": navBlock.data.brand } } : {}),
+  };
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${page.title}</title>
-  <meta name="description" content="${page.description || page.title}" />
-  <meta property="og:title" content="${page.title}" />
-  <meta property="og:description" content="${page.description || page.title}" />
-  ${page.ogImageUrl ? `<meta property="og:image" content="${page.ogImageUrl}" />` : ''}
+  <meta name="description" content="${(page.description || page.title).replace(/"/g, '&quot;')}" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="${page.title.replace(/"/g, '&quot;')}" />
+  <meta property="og:description" content="${(page.description || page.title).replace(/"/g, '&quot;')}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${page.title.replace(/"/g, '&quot;')}" />
+  <meta name="twitter:description" content="${(page.description || page.title).replace(/"/g, '&quot;')}" />
+  ${page.ogImageUrl ? `<meta property="og:image" content="${page.ogImageUrl}" />\n  <meta name="twitter:image" content="${page.ogImageUrl}" />` : ''}
   ${page.faviconUrl ? `<link rel="icon" href="${page.faviconUrl}" />` : ''}
+  <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="${fontUrl}" rel="stylesheet" />
@@ -144,6 +161,11 @@ ${bodyContent}
     el.classList.add('reveal');
     el.style.transitionDelay = (i === 0 ? 0 : Math.min(i * 0.05, 0.2)) + 's';
     io.observe(el);
+  });
+
+  // Lazy load images
+  document.querySelectorAll('img').forEach(function(img){
+    if (!img.getAttribute('loading')) img.setAttribute('loading', 'lazy');
   });
 
   // FAQ accordion
