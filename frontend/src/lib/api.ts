@@ -59,3 +59,18 @@ export async function createShareLink(html: string, title: string): Promise<stri
   if (!data.success) throw new Error('Failed to create share link');
   return data.url as string;
 }
+
+export async function publishToWeb(html: string, title: string): Promise<{ url: string; slug: string }> {
+  const { data } = await api.post('/publish-web', { html, title });
+  if (!data.success) throw new Error('Failed to publish');
+  return { url: data.url, slug: data.slug };
+}
+
+export async function getMySites(): Promise<{ slug: string; title: string; publishedAt: string; updatedAt: string }[]> {
+  const { data } = await api.get('/my-sites');
+  return data.sites || [];
+}
+
+export async function deleteSite(slug: string): Promise<void> {
+  await api.delete(`/my-sites/${slug}`);
+}

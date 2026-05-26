@@ -436,6 +436,70 @@ app.get('/share/:id', (req, res) => {
   res.send(entry.html);
 });
 
+// ── Publish to Web (permanent hosted pages) ──────────────────────────────
+const SITES_DIR = path.join(__dirname, '../../data/sites');
+const SITES_INDEX = path.join(SITES_DIR, '_index.json');
+if (!fs.existsSync(SITES_DIR)) fs.mkdirSync(SITES_DIR, { recursive: true });
+
+interface SiteMeta { slug: string; title: string; publishedAt: string; updatedAt: string; }
+
+function loadSitesIndex(): Record<string, SiteMeta> {
+  try { return fs.existsSync(SITES_INDEX) ? JSON.parse(fs.readFileSync(SITES_INDEX, 'utf8')) : {}; }
+  catch { return {}; }
+}
+function saveSitesIndex(index: Record<string, SiteMeta>) {
+  fs.writeFileSync(SITES_INDEX, JSON.stringify(index, null, 2));
+}
+function slugify(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'page';
+}
+
+app.post('/api/publish-web', (req, res) => {
+  const { html, title } = req.body;
+  if (!html || typeof html !== 'string') return res.status(400).json({ success: false, error: 'html required' });
+  const index = loadSitesIndex();
+  // Find if this title already has a slug (update vs create)
+  const existing = Object.values(index).find(s => s.title === title);
+  const slug = existing?.slug || (() => {
+    let base = slugify(title || 'page');
+    let candidate = base;
+    let n = 2;
+    while (fs.existsSync(path.join(SITES_DIR, `${candidate}.html`))) { candidate = `${base}-${n++}`; }
+    return candidate;
+  })();
+  const now = new Date().toISOString();
+  fs.writeFileSync(path.join(SITES_DIR, `${slug}.html`), html);
+  index[slug] = { slug, title: title || 'My Page', publishedAt: existing?.publishedAt || now, updatedAt: now };
+  saveSitesIndex(index);
+  const origin = `${req.protocol}://${req.get('host')}`;
+  console.log(`🌐  Published: ${origin}/sites/${slug}`);
+  res.json({ success: true, slug, url: `${origin}/sites/${slug}` });
+});
+
+app.get('/api/my-sites', (_req, res) => {
+  const index = loadSitesIndex();
+  res.json({ success: true, sites: Object.values(index).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) });
+});
+
+app.delete('/api/my-sites/:slug', (req, res) => {
+  const index = loadSitesIndex();
+  const slug = req.params.slug;
+  if (!index[slug]) return res.status(404).json({ success: false, error: 'Not found' });
+  try { fs.unlinkSync(path.join(SITES_DIR, `${slug}.html`)); } catch {}
+  delete index[slug];
+  saveSitesIndex(index);
+  res.json({ success: true });
+});
+
+app.get('/sites/:slug', (req, res) => {
+  const file = path.join(SITES_DIR, `${req.params.slug}.html`);
+  if (!fs.existsSync(file)) {
+    return res.status(404).send('<html><body style="font-family:sans-serif;padding:60px;text-align:center;max-width:500px;margin:0 auto"><h2 style="color:#1e293b">Page Not Found</h2><p style="color:#64748b">This page was deleted or does not exist.</p></body></html>');
+  }
+  res.setHeader('Content-Type', 'text/html');
+  res.sendFile(file);
+});
+
 // ── Serve React frontend in production ────────────────────────────────────
 const frontendDist = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDist));

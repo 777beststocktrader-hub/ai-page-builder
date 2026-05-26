@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2 } from 'lucide-react';
+import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2, Globe } from 'lucide-react';
 import ProjectsModal from './ProjectsModal';
 import ShopifyConnectModal, { getShopifyCredentials, clearShopifyCredentials, ShopifyCredentials } from './ShopifyConnectModal';
+import MySitesModal from './MySitesModal';
 import { usePageStore } from '../store/pageStore';
 import { downloadHtml, copyHtml, previewInNewTab, downloadZip, exportPageToHtml, exportPageJson, importPageJson } from '../lib/htmlExport';
 import { publishToShopify, isShopifyEmbedded } from '../lib/shopifyPublish';
-import { generatePageTitle, createShareLink } from '../lib/api';
+import { generatePageTitle, createShareLink, publishToWeb } from '../lib/api';
 import toast from 'react-hot-toast';
 
 export default function Toolbar() {
@@ -21,6 +22,9 @@ export default function Toolbar() {
   const [shopifyCreds, setShopifyCreds] = useState<ShopifyCredentials | null>(() => getShopifyCredentials());
   const [sharing, setSharing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [publishingWeb, setPublishingWeb] = useState(false);
+  const [webUrl, setWebUrl] = useState<string | null>(null);
+  const [showMySites, setShowMySites] = useState(false);
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -51,6 +55,24 @@ export default function Toolbar() {
     }
   };
 
+  const handlePublishWeb = async () => {
+    if (page.blocks.length === 0) { toast.error('Add sections before publishing'); return; }
+    setPublishingWeb(true);
+    try {
+      const html = exportPageToHtml(page, theme);
+      const { url } = await publishToWeb(html, page.title);
+      setWebUrl(url);
+      await navigator.clipboard.writeText(url);
+      toast.success(
+        <span>Page live! <a href={url} target="_blank" rel="noopener noreferrer" className="underline font-semibold">Open →</a> (URL copied)</span>,
+        { duration: 8000 }
+      );
+    } catch {
+      toast.error('Publish failed');
+    }
+    setPublishingWeb(false);
+  };
+
   const handleShare = async () => {
     if (page.blocks.length === 0) { toast.error('Add sections before sharing'); return; }
     setSharing(true);
@@ -72,6 +94,7 @@ export default function Toolbar() {
   return (
     <>
     {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
+    {showMySites && <MySitesModal onClose={() => setShowMySites(false)} />}
     {showShopifyConnect && (
       <ShopifyConnectModal
         onClose={() => setShowShopifyConnect(false)}
@@ -356,6 +379,35 @@ export default function Toolbar() {
         >
           Import
         </button>
+
+        {/* Publish to Web */}
+        <div className="w-px h-5 bg-slate-700 mx-1" />
+        <button
+          onClick={() => setShowMySites(true)}
+          title="My published websites"
+          className="p-2 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all"
+        >
+          <Globe size={16} />
+        </button>
+        {webUrl ? (
+          <a href={webUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-md text-sm font-medium transition-all"
+          >
+            <CheckCircle size={14} />
+            <span className="hidden sm:block">Live</span>
+          </a>
+        ) : (
+          <button
+            onClick={handlePublishWeb}
+            disabled={publishingWeb}
+            title="Save page as a live website"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-sm font-medium transition-all"
+          >
+            {publishingWeb ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
+            <span className="hidden sm:block">{publishingWeb ? 'Saving…' : 'Save to Web'}</span>
+          </button>
+        )}
+        <div className="w-px h-5 bg-slate-700 mx-1" />
 
         {/* Shopify connect indicator */}
         {shopifyCreds ? (
