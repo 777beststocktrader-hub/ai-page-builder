@@ -441,7 +441,7 @@ const SITES_DIR = path.join(__dirname, '../../data/sites');
 const SITES_INDEX = path.join(SITES_DIR, '_index.json');
 if (!fs.existsSync(SITES_DIR)) fs.mkdirSync(SITES_DIR, { recursive: true });
 
-interface SiteMeta { slug: string; title: string; publishedAt: string; updatedAt: string; }
+interface SiteMeta { slug: string; title: string; publishedAt: string; updatedAt: string; views: number; }
 
 function loadSitesIndex(): Record<string, SiteMeta> {
   try { return fs.existsSync(SITES_INDEX) ? JSON.parse(fs.readFileSync(SITES_INDEX, 'utf8')) : {}; }
@@ -469,7 +469,7 @@ app.post('/api/publish-web', (req, res) => {
   })();
   const now = new Date().toISOString();
   fs.writeFileSync(path.join(SITES_DIR, `${slug}.html`), html);
-  index[slug] = { slug, title: title || 'My Page', publishedAt: existing?.publishedAt || now, updatedAt: now };
+  index[slug] = { slug, title: title || 'My Page', publishedAt: existing?.publishedAt || now, updatedAt: now, views: existing?.views ?? 0 };
   saveSitesIndex(index);
   const origin = `${req.protocol}://${req.get('host')}`;
   console.log(`🌐  Published: ${origin}/sites/${slug}`);
@@ -496,8 +496,137 @@ app.get('/sites/:slug', (req, res) => {
   if (!fs.existsSync(file)) {
     return res.status(404).send('<html><body style="font-family:sans-serif;padding:60px;text-align:center;max-width:500px;margin:0 auto"><h2 style="color:#1e293b">Page Not Found</h2><p style="color:#64748b">This page was deleted or does not exist.</p></body></html>');
   }
+  // Track view
+  const index = loadSitesIndex();
+  if (index[req.params.slug]) {
+    index[req.params.slug].views = (index[req.params.slug].views || 0) + 1;
+    saveSitesIndex(index);
+  }
   res.setHeader('Content-Type', 'text/html');
   res.sendFile(file);
+});
+
+// ── AI A/B Headline Testing ───────────────────────────────────────────────
+app.post('/api/ai/ab-test', async (req, res) => {
+  const { headline, subheadline, primaryBtn, pageGoal } = req.body;
+  if (!headline) return res.status(400).json({ success: false, error: 'headline required' });
+  try {
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      system: 'You are a world-class copywriter and CRO expert. Respond with valid JSON only. No markdown.',
+      messages: [{
+        role: 'user',
+        content: `Generate 3 A/B test variants for this hero section headline.
+Current headline: "${headline}"
+${subheadline ? `Current subheadline: "${subheadline}"` : ''}
+${primaryBtn ? `CTA button: "${primaryBtn}"` : ''}
+${pageGoal ? `Page goal: "${pageGoal}"` : ''}
+
+Each variant should use a different copywriting angle:
+- Variant A: Outcome-focused (what the user achieves)
+- Variant B: Pain-point focused (problem it solves)
+- Variant C: Social proof angle (used by X type of people)
+
+Respond with JSON:
+{"variants":[
+  {"label":"A","angle":"Outcome-focused","headline":"str","subheadline":"str","primaryBtn":"str","improvement":"Why this might convert better"},
+  {"label":"B","angle":"Pain-point focused","headline":"str","subheadline":"str","primaryBtn":"str","improvement":"Why this might convert better"},
+  {"label":"C","angle":"Social proof angle","headline":"str","subheadline":"str","primaryBtn":"str","improvement":"Why this might convert better"}
+]}
+
+Rules: Headlines under 12 words. Be specific, not generic. Each variant must be meaningfully different.`,
+      }],
+    });
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '{}';
+    const match = raw.match(/\{[\s\S]*\}/);
+    const data = match ? JSON.parse(match[0]) : { variants: [] };
+    res.json({ success: true, variants: data.variants || [] });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── Privacy Policy ─────────────────────────────────────────────────────────
+app.get('/privacy', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy - AI PageBuilder</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:800px;margin:0 auto;padding:40px 24px;color:#1e293b;line-height:1.7}h1{color:#0f172a;font-size:2rem;margin-bottom:8px}h2{color:#1e293b;font-size:1.2rem;margin-top:32px}p,li{color:#475569}a{color:#4f46e5}hr{border:none;border-top:1px solid #e2e8f0;margin:32px 0}.badge{display:inline-block;background:#f1f5f9;color:#64748b;font-size:0.8rem;padding:4px 10px;border-radius:20px;margin-bottom:24px}</style>
+</head>
+<body>
+<h1>Privacy Policy</h1>
+<span class="badge">Last updated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+<p>AI PageBuilder ("the App", "we", "us") is a Shopify app that helps merchants create landing pages using AI. This Privacy Policy explains how we collect, use, and protect your information.</p>
+<h2>Information We Collect</h2>
+<ul>
+<li><strong>Shopify store data:</strong> When you install the App, we receive your store's domain and an access token to publish pages on your behalf.</li>
+<li><strong>Page content:</strong> The text and layout data of pages you create are stored locally in your browser and on our servers only when you choose to publish.</li>
+<li><strong>Contact form submissions:</strong> If your published page includes a contact form, submissions are stored on our server and accessible only to you.</li>
+<li><strong>Email subscribers:</strong> If your page includes a newsletter block, subscriber emails are stored on our server.</li>
+</ul>
+<h2>How We Use Your Information</h2>
+<ul>
+<li>To publish pages to your Shopify store as requested</li>
+<li>To generate AI content using the Anthropic API (content is not stored by Anthropic beyond the API call)</li>
+<li>To display page analytics (view counts) in your dashboard</li>
+</ul>
+<h2>Data Sharing</h2>
+<p>We do not sell your data. We share data only with:</p>
+<ul>
+<li><strong>Anthropic:</strong> Page content is sent to the Anthropic API for AI generation. See <a href="https://www.anthropic.com/privacy">Anthropic's privacy policy</a>.</li>
+<li><strong>Shopify:</strong> Page HTML is published to your store via the Shopify Admin API.</li>
+</ul>
+<h2>Data Retention</h2>
+<p>Published pages are stored until you delete them. Contact form submissions and subscriber lists are retained until you delete them or uninstall the App.</p>
+<h2>Your Rights</h2>
+<p>You may request deletion of all your data by uninstalling the App or contacting us at the email below. We will comply within 30 days.</p>
+<h2>GDPR Compliance</h2>
+<p>We support Shopify's mandatory GDPR webhooks: customer data requests, customer data deletion, and shop data deletion are all handled automatically upon uninstall.</p>
+<h2>Contact</h2>
+<p>Questions? Email us at <a href="mailto:777beststocktrader@gmail.com">777beststocktrader@gmail.com</a></p>
+<hr>
+<p style="font-size:0.85rem;color:#94a3b8">AI PageBuilder is not affiliated with Shopify Inc.</p>
+</body></html>`);
+});
+
+// ── Terms of Service ───────────────────────────────────────────────────────
+app.get('/terms', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terms of Service - AI PageBuilder</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:800px;margin:0 auto;padding:40px 24px;color:#1e293b;line-height:1.7}h1{color:#0f172a;font-size:2rem;margin-bottom:8px}h2{color:#1e293b;font-size:1.2rem;margin-top:32px}p,li{color:#475569}a{color:#4f46e5}hr{border:none;border-top:1px solid #e2e8f0;margin:32px 0}.badge{display:inline-block;background:#f1f5f9;color:#64748b;font-size:0.8rem;padding:4px 10px;border-radius:20px;margin-bottom:24px}</style>
+</head>
+<body>
+<h1>Terms of Service</h1>
+<span class="badge">Last updated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+<p>By installing or using AI PageBuilder, you agree to these Terms of Service.</p>
+<h2>The Service</h2>
+<p>AI PageBuilder is a Shopify embedded app that allows merchants to create, customize, and publish landing pages using AI-generated content.</p>
+<h2>Acceptable Use</h2>
+<p>You may not use the App to create pages that:</p>
+<ul>
+<li>Violate Shopify's Acceptable Use Policy</li>
+<li>Contain illegal content, spam, or deceptive material</li>
+<li>Infringe on third-party intellectual property rights</li>
+</ul>
+<h2>AI-Generated Content</h2>
+<p>Content generated by the AI is provided "as is." You are responsible for reviewing and editing AI output before publishing. We do not guarantee the accuracy, originality, or fitness of AI-generated content for any purpose.</p>
+<h2>Limitation of Liability</h2>
+<p>The App is provided "as is" without warranties of any kind. We are not liable for any damages arising from your use of the App, including but not limited to lost profits or data loss.</p>
+<h2>Termination</h2>
+<p>You may stop using the App at any time by uninstalling it from your Shopify store.</p>
+<h2>Changes to Terms</h2>
+<p>We may update these Terms at any time. Continued use of the App constitutes acceptance of the updated Terms.</p>
+<h2>Contact</h2>
+<p>Questions? Email us at <a href="mailto:777beststocktrader@gmail.com">777beststocktrader@gmail.com</a></p>
+<hr>
+<p style="font-size:0.85rem;color:#94a3b8">AI PageBuilder is not affiliated with Shopify Inc.</p>
+</body></html>`);
 });
 
 // ── Serve React frontend in production ────────────────────────────────────

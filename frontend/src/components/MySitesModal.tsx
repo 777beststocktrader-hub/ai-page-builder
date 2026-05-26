@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Globe, ExternalLink, Trash2, RefreshCw, Loader2 } from 'lucide-react';
+import { X, Globe, ExternalLink, Trash2, RefreshCw, Loader2, Eye, BarChart2 } from 'lucide-react';
 import { getMySites, deleteSite } from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -8,6 +8,7 @@ interface Site {
   title: string;
   publishedAt: string;
   updatedAt: string;
+  views: number;
 }
 
 export default function MySitesModal({ onClose }: { onClose: () => void }) {
@@ -36,6 +37,8 @@ export default function MySitesModal({ onClose }: { onClose: () => void }) {
 
   const getSiteUrl = (slug: string) => `${window.location.protocol}//${window.location.hostname}:3001/sites/${slug}`;
 
+  const totalViews = sites.reduce((sum, s) => sum + (s.views || 0), 0);
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -55,6 +58,20 @@ export default function MySitesModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        {/* Analytics summary bar */}
+        {sites.length > 0 && (
+          <div className="px-5 py-3 bg-slate-900/60 border-b border-slate-700 flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <BarChart2 size={14} className="text-indigo-400" />
+              <span className="text-xs text-slate-400 font-medium">{sites.length} page{sites.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Eye size={14} className="text-emerald-400" />
+              <span className="text-xs text-slate-400 font-medium">{totalViews.toLocaleString()} total views</span>
+            </div>
+          </div>
+        )}
+
         <div className="p-5">
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -64,13 +81,14 @@ export default function MySitesModal({ onClose }: { onClose: () => void }) {
             <div className="text-center py-12">
               <Globe size={36} className="mx-auto text-slate-600 mb-3" />
               <p className="text-slate-300 font-medium mb-1">No websites published yet</p>
-              <p className="text-slate-500 text-sm">Click "Publish to Web" to host your page permanently.</p>
+              <p className="text-slate-500 text-sm">Click "Save to Web" to host your page permanently.</p>
             </div>
           ) : (
             <div className="space-y-2">
               {sites.map(site => {
                 const siteUrl = getSiteUrl(site.slug);
                 const updated = new Date(site.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const views = site.views || 0;
                 return (
                   <div key={site.slug} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-700 hover:border-slate-600 transition-all">
                     <div className="w-9 h-9 rounded-lg bg-indigo-600/20 border border-indigo-600/30 flex items-center justify-center flex-shrink-0">
@@ -78,7 +96,13 @@ export default function MySitesModal({ onClose }: { onClose: () => void }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">{site.title}</p>
-                      <p className="text-xs text-slate-500 truncate">Updated {updated} · /{site.slug}</p>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <p className="text-xs text-slate-500">Updated {updated}</p>
+                        <span className="flex items-center gap-1 text-xs text-emerald-400/80">
+                          <Eye size={10} />
+                          {views.toLocaleString()} {views === 1 ? 'view' : 'views'}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
@@ -111,7 +135,7 @@ export default function MySitesModal({ onClose }: { onClose: () => void }) {
 
         <div className="px-5 pb-5">
           <p className="text-xs text-slate-500 text-center">
-            Pages are hosted at <code className="text-slate-400">localhost:3001/sites/slug</code> — use Railway to get a public URL
+            Deploy to Railway to get a public URL — views are tracked automatically
           </p>
         </div>
       </div>

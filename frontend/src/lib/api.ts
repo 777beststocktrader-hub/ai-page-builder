@@ -66,11 +66,22 @@ export async function publishToWeb(html: string, title: string): Promise<{ url: 
   return { url: data.url, slug: data.slug };
 }
 
-export async function getMySites(): Promise<{ slug: string; title: string; publishedAt: string; updatedAt: string }[]> {
+export async function getMySites(): Promise<{ slug: string; title: string; publishedAt: string; updatedAt: string; views: number }[]> {
   const { data } = await api.get('/my-sites');
   return data.sites || [];
 }
 
 export async function deleteSite(slug: string): Promise<void> {
   await api.delete(`/my-sites/${slug}`);
+}
+
+export async function abTestHeadlines(
+  headline: string,
+  subheadline?: string,
+  primaryBtn?: string,
+  pageGoal?: string
+): Promise<{ label: string; angle: string; headline: string; subheadline: string; primaryBtn: string; improvement: string }[]> {
+  const { data } = await api.post('/ai/ab-test', { headline, subheadline, primaryBtn, pageGoal });
+  if (!data.success) throw new Error(data.error || 'A/B test failed');
+  return data.variants || [];
 }
