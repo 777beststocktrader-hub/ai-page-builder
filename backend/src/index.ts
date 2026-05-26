@@ -547,6 +547,107 @@ Rules: Headlines under 12 words. Be specific, not generic. Each variant must be 
   }
 });
 
+// ── AI Polish Page (coherence rewrite) ───────────────────────────────────
+app.post('/api/ai/polish-page', async (req, res) => {
+  const { blocks, pageGoal, tone = 'professional' } = req.body;
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    return res.status(400).json({ success: false, error: 'blocks required' });
+  }
+  const toneGuide: Record<string, string> = {
+    professional: 'formal, trustworthy, business-appropriate',
+    casual: 'friendly, conversational, approachable',
+    marketing: 'persuasive, exciting, benefit-focused',
+    playful: 'fun, energetic, creative, witty',
+  };
+  try {
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      system: 'You are an expert copywriter. Rewrite landing page content for consistency and conversion. Respond with valid JSON only. No markdown.',
+      messages: [{
+        role: 'user',
+        content: `Polish this landing page to have consistent, compelling copy throughout.
+Page goal: "${pageGoal || 'landing page'}"
+Tone: ${toneGuide[tone] || toneGuide.professional}
+
+Current blocks (JSON):
+${JSON.stringify(blocks.map((b: any) => ({ type: b.type, data: b.data })), null, 2)}
+
+Rules:
+- Keep EXACT same JSON keys and structure
+- Keep all hex color values unchanged
+- Keep all URLs/hrefs as-is (e.g. "#" stays "#")
+- Keep array lengths the same
+- Rewrite only text: headlines, descriptions, button text, quotes, names, etc.
+- Make voice consistent and on-brand across ALL sections
+- Each section should feel like it belongs to the same story
+- More specific, benefit-focused, conversion-optimized
+
+Return JSON: {"blocks":[{"type":"...","data":{...}},...]}`,
+      }],
+    });
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '{}';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return res.status(500).json({ success: false, error: 'Invalid AI response' });
+    let data: any;
+    try { data = JSON.parse(match[0]); }
+    catch {
+      const cleaned = match[0].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+      try { data = JSON.parse(cleaned); }
+      catch { return res.status(500).json({ success: false, error: 'JSON parse error' }); }
+    }
+    res.json({ success: true, blocks: data.blocks || blocks });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── AI Translate Page ─────────────────────────────────────────────────────
+app.post('/api/ai/translate', async (req, res) => {
+  const { blocks, targetLanguage } = req.body;
+  if (!Array.isArray(blocks) || blocks.length === 0 || !targetLanguage) {
+    return res.status(400).json({ success: false, error: 'blocks and targetLanguage required' });
+  }
+  try {
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      system: 'You are a professional translator. Translate web page content. Respond with valid JSON only. No markdown.',
+      messages: [{
+        role: 'user',
+        content: `Translate all text content in this landing page to ${targetLanguage}.
+
+Current blocks (JSON):
+${JSON.stringify(blocks.map((b: any) => ({ type: b.type, data: b.data })), null, 2)}
+
+Rules:
+- Keep EXACT same JSON keys and structure
+- Keep all hex color values unchanged
+- Keep all URLs/hrefs as-is
+- Keep array lengths the same
+- Translate ONLY text content (headlines, descriptions, buttons, etc.)
+- Use natural, fluent ${targetLanguage} — not word-for-word literal translation
+- Preserve marketing tone and persuasive intent
+
+Return JSON: {"blocks":[{"type":"...","data":{...}},...]}`,
+      }],
+    });
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '{}';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return res.status(500).json({ success: false, error: 'Invalid AI response' });
+    let data: any;
+    try { data = JSON.parse(match[0]); }
+    catch {
+      const cleaned = match[0].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+      try { data = JSON.parse(cleaned); }
+      catch { return res.status(500).json({ success: false, error: 'JSON parse error' }); }
+    }
+    res.json({ success: true, blocks: data.blocks || blocks });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── Privacy Policy ─────────────────────────────────────────────────────────
 app.get('/privacy', (_req, res) => {
   res.setHeader('Content-Type', 'text/html');

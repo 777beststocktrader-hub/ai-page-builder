@@ -75,6 +75,25 @@ export async function deleteSite(slug: string): Promise<void> {
   await api.delete(`/my-sites/${slug}`);
 }
 
+export async function polishPage(
+  blocks: Array<{ type: string; data: Record<string, any> }>,
+  pageGoal?: string,
+  tone?: string
+): Promise<Array<{ type: string; data: Record<string, any> }>> {
+  const { data } = await api.post('/ai/polish-page', { blocks, pageGoal, tone: tone || 'marketing' });
+  if (!data.success) throw new Error(data.error || 'Polish failed');
+  return data.blocks;
+}
+
+export async function translatePage(
+  blocks: Array<{ type: string; data: Record<string, any> }>,
+  targetLanguage: string
+): Promise<Array<{ type: string; data: Record<string, any> }>> {
+  const { data } = await api.post('/ai/translate', { blocks, targetLanguage });
+  if (!data.success) throw new Error(data.error || 'Translation failed');
+  return data.blocks;
+}
+
 export async function abTestHeadlines(
   headline: string,
   subheadline?: string,

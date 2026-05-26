@@ -15,12 +15,12 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap } from 'lucide-react';
+import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X } from 'lucide-react';
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
 import { Block } from '../types';
 import BLOCK_DEFS from '../blocks/blockDefs';
-import { generateBlockContent, generateFullPage } from '../lib/api';
+import { generateBlockContent, generateFullPage, polishPage, translatePage } from '../lib/api';
 import toast from 'react-hot-toast';
 
 function getSmartSuggestions(existingTypes: string[]): string[] {
@@ -308,8 +308,18 @@ function EmptyState() {
   );
 }
 
+const LANGUAGES = [
+  'Spanish', 'French', 'German', 'Portuguese', 'Italian', 'Dutch',
+  'Japanese', 'Korean', 'Chinese (Simplified)', 'Arabic', 'Hindi', 'Russian',
+  'Turkish', 'Polish', 'Swedish', 'Norwegian', 'Danish', 'Finnish',
+];
+
 export default function Canvas() {
-  const { page, selectedBlockId, selectBlock, moveBlock, addBlock, theme } = usePageStore();
+  const { page, selectedBlockId, selectBlock, moveBlock, addBlock, updateBlock, pageGoal, theme } = usePageStore();
+  const [polishing, setPolishing] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  const [polishTone, setPolishTone] = useState<'marketing' | 'professional' | 'casual' | 'playful'>('marketing');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -323,21 +333,107 @@ export default function Canvas() {
     }
   };
 
+  const handlePolish = async () => {
+    if (polishing || page.blocks.length === 0) return;
+    setPolishing(true);
+    try {
+      const input = page.blocks.map(b => ({ type: b.type, data: b.data }));
+      const polished = await polishPage(input, pageGoal || page.title, polishTone);
+      polished.forEach((pb, i) => {
+        if (page.blocks[i]) updateBlock(page.blocks[i].id, pb.data);
+      });
+      toast.success(`Page polished! ✨ All ${page.blocks.length} sections rewritten.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Polish failed');
+    }
+    setPolishing(false);
+  };
+
+  const handleTranslate = async (lang: string) => {
+    setShowLangPicker(false);
+    setTranslating(true);
+    try {
+      const input = page.blocks.map(b => ({ type: b.type, data: b.data }));
+      const translated = await translatePage(input, lang);
+      translated.forEach((tb, i) => {
+        if (page.blocks[i]) updateBlock(page.blocks[i].id, tb.data);
+      });
+      toast.success(`Translated to ${lang}! 🌐`);
+    } catch (err: any) {
+      toast.error(err.message || 'Translation failed');
+    }
+    setTranslating(false);
+  };
+
   if (page.blocks.length === 0) {
     return <EmptyState />;
   }
 
   return (
     <div
-      className="flex-1 overflow-y-auto bg-slate-200"
+      className="flex-1 overflow-y-auto bg-slate-200 relative"
       style={{ '--brand': theme.primaryColor } as React.CSSProperties}
-      onClick={() => selectBlock(null)}
+      onClick={() => { selectBlock(null); setShowLangPicker(false); }}
     >
       {page.blocks.length > 0 && (
-        <div className="sticky top-0 z-30 flex items-center justify-end gap-3 px-4 py-1.5 bg-slate-100/80 backdrop-blur-sm border-b border-slate-200 text-xs text-slate-400 pointer-events-none">
-          <span>{page.blocks.length} section{page.blocks.length !== 1 ? 's' : ''}</span>
-          <span>·</span>
-          <span>{estimateReadingTime(page.blocks)}</span>
+        <div className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-1.5 bg-slate-100/80 backdrop-blur-sm border-b border-slate-200">
+          <div className="text-xs text-slate-400 flex items-center gap-2">
+            <span>{page.blocks.length} section{page.blocks.length !== 1 ? 's' : ''}</span>
+            <span>·</span>
+            <span>{estimateReadingTime(page.blocks)}</span>
+          </div>
+          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+            {/* Polish Page */}
+            <select
+              value={polishTone}
+              onChange={e => setPolishTone(e.target.value as any)}
+              disabled={polishing || translating}
+              className="py-1 px-1.5 bg-slate-700 text-slate-300 text-xs rounded-md border border-slate-600 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+              title="Tone for Polish Page"
+            >
+              <option value="marketing">Marketing</option>
+              <option value="professional">Professional</option>
+              <option value="casual">Casual</option>
+              <option value="playful">Playful</option>
+            </select>
+            <button
+              onClick={handlePolish}
+              disabled={polishing || translating}
+              title="Polish Page — AI rewrites all sections for consistent, compelling copy"
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded-md transition-all"
+            >
+              {polishing ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+              {polishing ? 'Polishing…' : 'Polish Page'}
+            </button>
+            {/* Translate */}
+            <div className="relative">
+              <button
+                onClick={() => setShowLangPicker(!showLangPicker)}
+                disabled={polishing || translating}
+                title="Translate all content to another language"
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 text-xs font-medium rounded-md transition-all border border-slate-600"
+              >
+                {translating ? <Loader2 size={11} className="animate-spin" /> : <Languages size={11} />}
+                {translating ? 'Translating…' : 'Translate'}
+              </button>
+              {showLangPicker && (
+                <div className="absolute right-0 top-8 z-[100] w-52 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
+                    <span className="text-xs font-semibold text-slate-300">Translate to…</span>
+                    <button onClick={() => setShowLangPicker(false)} className="p-0.5 text-slate-500 hover:text-white"><X size={11} /></button>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {LANGUAGES.map(lang => (
+                      <button key={lang} onClick={() => handleTranslate(lang)}
+                        className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border-b border-slate-700/30 last:border-0">
+                        {lang}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
       <div className="min-h-full bg-white max-w-5xl mx-auto shadow-xl my-4">
