@@ -3,6 +3,7 @@ export interface Block {
   type: string;
   data: Record<string, any>;
   hidden?: boolean;
+  locked?: boolean;
 }
 
 export interface Page {

@@ -2,6 +2,38 @@ import { Page, Theme } from '../types';
 import { getBlockDef } from '../blocks/blockDefs';
 import JSZip from 'jszip';
 
+export function exportPageJson(page: Page, theme?: Theme): void {
+  const data = { page, theme };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${page.title.toLowerCase().replace(/\s+/g, '-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function importPageJson(onLoad: (page: Page, theme?: Theme) => void): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        const p = data.page ?? data;
+        if (p && Array.isArray(p.blocks)) onLoad(p, data.theme);
+        else alert('Invalid page JSON file');
+      } catch { alert('Could not parse JSON file'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 const FONT_IMPORTS: Record<string, string> = {
   Inter: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
   Poppins: "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap",

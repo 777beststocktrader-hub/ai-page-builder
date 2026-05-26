@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Maximize2 } from 'lucide-react';
+import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Maximize2, Lock, Unlock } from 'lucide-react';
 import { generateSeoDescription, analyzePageConversions } from '../lib/api';
 
 const FONT_OPTIONS = [
@@ -635,7 +635,7 @@ function EmptyState() {
 }
 
 export default function PropertiesPanel() {
-  const { selectedBlockId, page, updateBlock, deleteBlock, duplicateBlock, moveBlock, toggleBlockVisibility } = usePageStore();
+  const { selectedBlockId, page, updateBlock, deleteBlock, duplicateBlock, moveBlock, toggleBlockVisibility, lockBlock } = usePageStore();
 
   const block = page.blocks.find((b) => b.id === selectedBlockId);
   const blockIndex = page.blocks.findIndex((b) => b.id === selectedBlockId);
@@ -679,6 +679,13 @@ export default function PropertiesPanel() {
               title={block.hidden ? 'Show block' : 'Hide block (excluded from export)'}
             >
               {block.hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+            <button
+              onClick={() => lockBlock(block.id)}
+              className={`p-1 rounded ${block.locked ? 'text-orange-400 hover:text-orange-300' : 'text-slate-500 hover:text-slate-300'}`}
+              title={block.locked ? 'Unlock block' : 'Lock block (prevent edits)'}
+            >
+              {block.locked ? <Lock size={14} /> : <Unlock size={14} />}
             </button>
             <button
               onClick={() => duplicateBlock(block.id)}

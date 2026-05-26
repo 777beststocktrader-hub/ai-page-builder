@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2 } from 'lucide-react';
+import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2 } from 'lucide-react';
 import ProjectsModal from './ProjectsModal';
 import ShopifyConnectModal, { getShopifyCredentials, clearShopifyCredentials, ShopifyCredentials } from './ShopifyConnectModal';
 import { usePageStore } from '../store/pageStore';
-import { downloadHtml, copyHtml, previewInNewTab, downloadZip, exportPageToHtml } from '../lib/htmlExport';
+import { downloadHtml, copyHtml, previewInNewTab, downloadZip, exportPageToHtml, exportPageJson, importPageJson } from '../lib/htmlExport';
 import { publishToShopify, isShopifyEmbedded } from '../lib/shopifyPublish';
 import { generatePageTitle, createShareLink } from '../lib/api';
 import toast from 'react-hot-toast';
 
 export default function Toolbar() {
-  const { page, theme, undo, redo, isPreview, setPreview, previewMode, setPreviewMode, history, setPageTitle, savedAt, setPageSettings, pageGoal } = usePageStore();
+  const { page, theme, undo, redo, isPreview, setPreview, previewMode, setPreviewMode, history, setPageTitle, savedAt, setPageSettings, pageGoal, snapshots, createSnapshot, restoreSnapshot, deleteSnapshot } = usePageStore();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(page.title);
   const [publishing, setPublishing] = useState(false);
@@ -20,6 +20,7 @@ export default function Toolbar() {
   const [showShopifyConnect, setShowShopifyConnect] = useState(false);
   const [shopifyCreds, setShopifyCreds] = useState<ShopifyCredentials | null>(() => getShopifyCredentials());
   const [sharing, setSharing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -236,6 +237,46 @@ export default function Toolbar() {
           <Redo2 size={16} />
         </button>
 
+        <div className="relative">
+          <button
+            onClick={() => { if (page.blocks.length > 0) { createSnapshot(); setShowHistory(true); } else setShowHistory(!showHistory); }}
+            title="Version history — save and restore snapshots"
+            className={`p-2 rounded-md hover:bg-slate-800 transition-all ${showHistory ? 'text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+          >
+            <History size={16} />
+          </button>
+          {showHistory && (
+            <div className="absolute right-0 top-10 z-[200] w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-700">
+                <span className="text-xs font-semibold text-slate-300">Version History</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { createSnapshot(); toast.success('Snapshot saved!'); }}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">+ Save now</button>
+                  <button onClick={() => setShowHistory(false)} className="p-0.5 text-slate-500 hover:text-white rounded">
+                    <X size={12} />
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {snapshots.length === 0 ? (
+                  <p className="py-6 text-center text-xs text-slate-500">No snapshots yet.<br/>Snapshots save automatically or click "+ Save now".</p>
+                ) : snapshots.map(snap => (
+                  <div key={snap.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 border-b border-slate-700/50 last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-slate-200 truncate">{snap.name}</p>
+                      <p className="text-xs text-slate-500">{snap.blocks.length} blocks · {new Date(snap.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                    <button onClick={() => { restoreSnapshot(snap.id); setShowHistory(false); toast.success('Restored!'); }}
+                      title="Restore this snapshot" className="p-1 text-slate-500 hover:text-green-400 rounded"><RotateCcw size={12} /></button>
+                    <button onClick={() => deleteSnapshot(snap.id)}
+                      title="Delete snapshot" className="p-1 text-slate-500 hover:text-red-400 rounded"><Trash2 size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="w-px h-5 bg-slate-700 mx-1" />
 
         <button
@@ -292,12 +333,29 @@ export default function Toolbar() {
           </button>
           <button
             onClick={() => { downloadZip(page, theme); toast.success('Bundling ZIP…'); }}
-            className="px-2 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-r-md text-xs font-medium transition-all"
+            className="px-2 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-medium transition-all border-r border-slate-700"
             title="Export as ZIP (HTML + images)"
           >
             .zip
           </button>
+          <button
+            onClick={() => { exportPageJson(page, theme); toast.success('JSON exported!'); }}
+            className="px-2 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-r-md text-xs font-medium transition-all"
+            title="Export page data as JSON"
+          >
+            .json
+          </button>
         </div>
+        <button
+          onClick={() => importPageJson((p, t) => {
+            usePageStore.getState().loadProject(p, '', t ?? usePageStore.getState().theme);
+            toast.success('Page imported!');
+          })}
+          title="Import page from JSON file"
+          className="p-2 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all text-xs font-medium"
+        >
+          Import
+        </button>
 
         {/* Shopify connect indicator */}
         {shopifyCreds ? (

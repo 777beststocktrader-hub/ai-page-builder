@@ -8,6 +8,14 @@ interface History {
   future: Block[][];
 }
 
+export interface Snapshot {
+  id: string;
+  name: string;
+  blocks: Block[];
+  pageTitle: string;
+  createdAt: number;
+}
+
 interface PageStore {
   page: Page;
   selectedBlockId: string | null;
@@ -17,6 +25,7 @@ interface PageStore {
   pageGoal: string;
   savedAt: number | null;
   theme: Theme;
+  snapshots: Snapshot[];
 
   setPageTitle: (title: string) => void;
   setPageDescription: (desc: string) => void;
@@ -29,6 +38,7 @@ interface PageStore {
   deleteBlock: (id: string) => void;
   duplicateBlock: (id: string) => void;
   toggleBlockVisibility: (id: string) => void;
+  lockBlock: (id: string) => void;
   moveBlock: (activeId: string, overId: string) => void;
   selectBlock: (id: string | null) => void;
   undo: () => void;
@@ -39,6 +49,9 @@ interface PageStore {
   loadProject: (page: Page, pageGoal: string, theme: Theme) => void;
   newProject: () => void;
   markSaved: () => void;
+  createSnapshot: (name?: string) => void;
+  restoreSnapshot: (id: string) => void;
+  deleteSnapshot: (id: string) => void;
 }
 
 const STORAGE_KEY = 'ai-pb-v1';
@@ -60,6 +73,14 @@ const defaultPage: Page = {
   blocks: [],
 };
 
+const SNAPSHOTS_KEY = 'ai-pb-snapshots';
+function tryLoadSnapshots(): Snapshot[] {
+  try {
+    const raw = localStorage.getItem(SNAPSHOTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
 export const usePageStore = create<PageStore>((set, get) => ({
   page: saved?.page ?? defaultPage,
   selectedBlockId: null,
@@ -69,6 +90,7 @@ export const usePageStore = create<PageStore>((set, get) => ({
   pageGoal: saved?.pageGoal ?? '',
   savedAt: saved ? Date.now() : null,
   theme: saved?.theme ?? { primaryColor: '#4f46e5' },
+  snapshots: tryLoadSnapshots(),
 
   setPageTitle: (title) =>
     set((s) => ({ page: { ...s.page, title } })),
@@ -158,6 +180,14 @@ export const usePageStore = create<PageStore>((set, get) => ({
       },
     })),
 
+  lockBlock: (id) =>
+    set((s) => ({
+      page: {
+        ...s.page,
+        blocks: s.page.blocks.map((b) => b.id === id ? { ...b, locked: !b.locked } : b),
+      },
+    })),
+
   moveBlock: (activeId, overId) =>
     set((s) => {
       const blocks = [...s.page.blocks];
@@ -214,4 +244,36 @@ export const usePageStore = create<PageStore>((set, get) => ({
   },
 
   markSaved: () => set({ savedAt: Date.now() }),
+
+  createSnapshot: (name) =>
+    set((s) => {
+      const snapshot: Snapshot = {
+        id: uuid(),
+        name: name || `Snapshot — ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+        blocks: s.page.blocks,
+        pageTitle: s.page.title,
+        createdAt: Date.now(),
+      };
+      const snapshots = [snapshot, ...s.snapshots].slice(0, 20);
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snapshots)); } catch {}
+      return { snapshots };
+    }),
+
+  restoreSnapshot: (id) =>
+    set((s) => {
+      const snap = s.snapshots.find(sn => sn.id === id);
+      if (!snap) return {};
+      return {
+        page: { ...s.page, blocks: snap.blocks, title: snap.pageTitle },
+        history: { past: [...s.history.past, s.page.blocks], present: snap.blocks, future: [] },
+        selectedBlockId: null,
+      };
+    }),
+
+  deleteSnapshot: (id) =>
+    set((s) => {
+      const snapshots = s.snapshots.filter(sn => sn.id !== id);
+      try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snapshots)); } catch {}
+      return { snapshots };
+    }),
 }));
