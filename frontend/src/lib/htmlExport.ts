@@ -191,6 +191,19 @@ export async function downloadZip(page: Page, theme?: Theme): Promise<void> {
 
   zip.file('index.html', finalHtml);
 
+  // Include robots.txt and sitemap.xml
+  zip.file('robots.txt', `User-agent: *\nAllow: /\nSitemap: /sitemap.xml\n`);
+  const today = new Date().toISOString().split('T')[0];
+  zip.file('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`);
+
   // Fetch and bundle uploaded images
   if (uploadedUrls.length > 0) {
     const assetsFolder = zip.folder('assets')!;

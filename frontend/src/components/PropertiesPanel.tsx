@@ -366,6 +366,42 @@ function LiveSeoScore({ page }: { page: import('../types').Page }) {
   );
 }
 
+function PageQualityBadges({ page }: { page: import('../types').Page }) {
+  if (page.blocks.length === 0) return null;
+  const types = page.blocks.map(b => b.type);
+  const nonNav = page.blocks.filter(b => !['navbar', 'footer', 'banner'].includes(b.type));
+  const badges = [
+    types.includes('navbar') && { label: 'Nav', color: 'bg-blue-900/40 text-blue-400 border-blue-800/50' },
+    types.includes('hero') && { label: 'Hero', color: 'bg-indigo-900/40 text-indigo-400 border-indigo-800/50' },
+    types.some(t => ['testimonials', 'stats', 'comparison', 'testimonial-single'].includes(t)) && { label: 'Proof', color: 'bg-green-900/40 text-green-400 border-green-800/50' },
+    types.some(t => ['pricing', 'cta', 'newsletter', 'cta-banner'].includes(t)) && { label: 'CTA', color: 'bg-orange-900/40 text-orange-400 border-orange-800/50' },
+    types.includes('faq') && { label: 'FAQ', color: 'bg-purple-900/40 text-purple-400 border-purple-800/50' },
+    types.includes('footer') && { label: 'Footer', color: 'bg-slate-800 text-slate-400 border-slate-700' },
+  ].filter(Boolean) as { label: string; color: string }[];
+
+  const missingEssentials = [];
+  if (!types.includes('hero')) missingEssentials.push('Hero');
+  if (!types.some(t => ['cta', 'pricing', 'newsletter', 'cta-banner'].includes(t))) missingEssentials.push('CTA');
+  if (!types.includes('footer')) missingEssentials.push('Footer');
+
+  return (
+    <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Page Structure</p>
+      <div className="flex flex-wrap gap-1 mb-2">
+        {badges.map(b => (
+          <span key={b.label} className={`text-xs px-1.5 py-0.5 rounded border font-medium ${b.color}`}>{b.label}</span>
+        ))}
+      </div>
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <span>{nonNav.length} content section{nonNav.length !== 1 ? 's' : ''}</span>
+        {missingEssentials.length > 0 && (
+          <span className="text-amber-600">Missing: {missingEssentials.join(', ')}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function EmptyState() {
   const { theme, setTheme, page, setPageDescription, pageGoal, applyBrandColor } = usePageStore();
   const [genSeo, setGenSeo] = useState(false);
@@ -379,6 +415,7 @@ function EmptyState() {
         <p className="text-slate-500 text-xs">Or add blocks from the left panel</p>
       </div>
 
+      <PageQualityBadges page={page} />
       <LiveSeoScore page={page} />
 
       {/* Theme Presets */}

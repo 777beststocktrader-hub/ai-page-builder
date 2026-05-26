@@ -2348,6 +2348,73 @@ function handleContact(e){
     },
   },
 
+  // ── Cookie Consent Bar ───────────────────────────────────────────────────
+  {
+    type: 'cookie-consent',
+    label: 'Cookie Consent',
+    emoji: '🍪',
+    category: 'Navigation',
+    fields: [
+      { key: 'message', label: 'Message', type: 'textarea' },
+      { key: 'acceptText', label: 'Accept Button', type: 'text' },
+      { key: 'rejectText', label: 'Reject / Decline', type: 'text', placeholder: 'Decline' },
+      { key: 'privacyText', label: 'Privacy Link Text', type: 'text', placeholder: 'Privacy Policy' },
+      { key: 'privacyUrl', label: 'Privacy URL', type: 'url', placeholder: '/privacy' },
+      { key: 'bgColor', label: 'Background', type: 'color' },
+      { key: 'accentColor', label: 'Button Color', type: 'color' },
+    ],
+    defaultData: {
+      message: 'We use cookies to improve your experience and analyze site traffic. By clicking "Accept", you consent to our use of cookies.',
+      acceptText: 'Accept All',
+      rejectText: 'Decline',
+      privacyText: 'Privacy Policy',
+      privacyUrl: '/privacy',
+      bgColor: '#1e293b',
+      accentColor: '#4f46e5',
+    },
+    renderCanvas: (data, onUpdate) => (
+      <div className="px-6 py-4 flex items-center gap-4 flex-wrap justify-between" style={{ backgroundColor: data.bgColor }}>
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <span className="text-2xl flex-shrink-0">🍪</span>
+          <div className="min-w-0">
+            <IE as="p" value={data.message} fieldKey="message" onUpdate={onUpdate}
+              className="text-sm text-gray-300 leading-relaxed block" />
+            {data.privacyText && (
+              <a href={data.privacyUrl || '#'} className="text-xs underline mt-1 block" style={{ color: data.accentColor }}>
+                {data.privacyText}
+              </a>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 flex-shrink-0">
+          {data.rejectText && (
+            <button className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white border border-gray-600 rounded-lg transition-all">
+              <IE as="span" value={data.rejectText} fieldKey="rejectText" onUpdate={onUpdate} />
+            </button>
+          )}
+          <button className="px-5 py-2 text-sm font-semibold text-white rounded-lg" style={{ backgroundColor: data.accentColor }}>
+            <IE as="span" value={data.acceptText} fieldKey="acceptText" onUpdate={onUpdate} />
+          </button>
+        </div>
+      </div>
+    ),
+    exportHtml: (data) => `
+<div id="cookie-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:9999;padding:16px 24px;background:${data.bgColor};display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;box-shadow:0 -4px 24px rgba(0,0,0,0.3);">
+  <div style="display:flex;align-items:flex-start;gap:12px;flex:1;min-width:0;">
+    <span style="font-size:1.5rem;flex-shrink:0;">🍪</span>
+    <div>
+      <p style="color:#cbd5e1;font-size:0.875rem;line-height:1.6;margin:0 0 4px;">${data.message}</p>
+      ${data.privacyText ? `<a href="${data.privacyUrl||'#'}" style="color:${data.accentColor};font-size:0.75rem;text-decoration:underline;">${data.privacyText}</a>` : ''}
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0;">
+    ${data.rejectText ? `<button onclick="document.getElementById('cookie-banner').style.display='none'" style="padding:8px 16px;font-size:0.875rem;font-weight:500;color:#9ca3af;border:1px solid #4b5563;border-radius:8px;background:transparent;cursor:pointer;">${data.rejectText}</button>` : ''}
+    <button onclick="document.getElementById('cookie-banner').style.display='none';localStorage.setItem('cookieConsent','1')" style="padding:8px 20px;font-size:0.875rem;font-weight:600;color:#fff;background:${data.accentColor};border:none;border-radius:8px;cursor:pointer;">${data.acceptText}</button>
+  </div>
+</div>
+<script>if(localStorage.getItem('cookieConsent'))document.getElementById('cookie-banner').style.display='none';</script>`,
+  },
+
   // ── Pricing Table (simple 2-col) ──────────────────────────────────────────
   {
     type: 'cta-banner',

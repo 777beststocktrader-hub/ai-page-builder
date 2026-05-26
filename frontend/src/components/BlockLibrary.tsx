@@ -5,7 +5,7 @@ import { usePageStore } from '../store/pageStore';
 import { generateFullPage, generateBlockContent } from '../lib/api';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = ['Navigation', 'Hero', 'Content', 'Media', 'Social', 'CTA', 'Footer'];
+const CATEGORIES = ['Navigation', 'Hero', 'Content', 'Media', 'Social Proof', 'Conversion', 'Layout', 'Social', 'CTA', 'Footer'];
 
 const PAGE_TEMPLATES = [
   {

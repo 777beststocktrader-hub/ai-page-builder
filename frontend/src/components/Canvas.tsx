@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -15,11 +15,12 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Copy, Plus, EyeOff, Code } from 'lucide-react';
+import { GripVertical, Trash2, Copy, Plus, EyeOff, Code, Sparkles, Loader2 } from 'lucide-react';
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
 import { Block } from '../types';
 import BLOCK_DEFS from '../blocks/blockDefs';
+import { generateBlockContent } from '../lib/api';
 import toast from 'react-hot-toast';
 
 function getSmartSuggestions(existingTypes: string[]): string[] {
@@ -29,8 +30,29 @@ function getSmartSuggestions(existingTypes: string[]): string[] {
 }
 
 function SortableBlock({ block, selected, existingTypes }: { block: Block; selected: boolean; existingTypes: string[] }) {
-  const { selectBlock, deleteBlock, duplicateBlock, addBlock, updateBlock } = usePageStore();
+  const { selectBlock, deleteBlock, duplicateBlock, addBlock, updateBlock, pageGoal } = usePageStore();
   const def = getBlockDef(block.type);
+  const [rewriting, setRewriting] = useState(false);
+
+  const handleAiRewrite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!def || rewriting) return;
+    setRewriting(true);
+    try {
+      const newData = await generateBlockContent(
+        block.type,
+        'Make this section more compelling, benefit-focused, and conversion-optimized. Keep the same structure.',
+        block.data,
+        'marketing',
+        pageGoal || undefined
+      );
+      updateBlock(block.id, { ...block.data, ...newData });
+      toast.success('Block rewritten!');
+    } catch {
+      toast.error('AI rewrite failed');
+    }
+    setRewriting(false);
+  };
 
   const {
     attributes,
@@ -77,6 +99,14 @@ function SortableBlock({ block, selected, existingTypes }: { block: Block; selec
           title="Duplicate"
         >
           <Copy size={14} />
+        </button>
+        <button
+          onClick={handleAiRewrite}
+          disabled={rewriting}
+          className="p-1.5 bg-slate-800/90 backdrop-blur-sm text-slate-400 hover:text-purple-400 rounded-md disabled:opacity-50"
+          title="AI rewrite this block"
+        >
+          {rewriting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
         </button>
         <button
           onClick={(e) => {
