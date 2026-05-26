@@ -86,6 +86,48 @@ app.use('/api/webhooks', webhooksRouter);
 // ── Publish pages to Shopify ──────────────────────────────────────────────
 app.use('/api/shopify/publish', publishRouter);
 
+// ── Direct publish with Custom App token (no OAuth required) ─────────────
+app.post('/api/shopify/direct-publish', async (req, res) => {
+  const { shop, token, pageTitle, html, pageId } = req.body;
+  if (!shop || !token || !pageTitle || !html) {
+    return res.status(400).json({ success: false, error: 'Missing shop, token, pageTitle, or html' });
+  }
+  const cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const headers = { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token };
+
+  try {
+    let response: Response;
+    if (pageId) {
+      // Update existing page
+      response = await fetch(`https://${cleanShop}/admin/api/2024-01/pages/${pageId}.json`, {
+        method: 'PUT', headers,
+        body: JSON.stringify({ page: { id: pageId, title: pageTitle, body_html: html, published: true } }),
+      });
+    } else {
+      // Create new page
+      response = await fetch(`https://${cleanShop}/admin/api/2024-01/pages.json`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ page: { title: pageTitle, body_html: html, published: true } }),
+      });
+    }
+
+    if (!response.ok) {
+      const err = await response.text();
+      if (response.status === 401) return res.status(401).json({ success: false, error: 'Invalid access token. Check your Custom App token.' });
+      throw new Error(`Shopify error: ${err}`);
+    }
+
+    const data = await response.json() as { page: { id: number; handle: string; title: string } };
+    const pageUrl = `https://${cleanShop}/pages/${data.page.handle}`;
+    const adminUrl = `https://${cleanShop}/admin/pages/${data.page.id}`;
+    console.log(`✅ Direct-published: ${pageUrl}`);
+    res.json({ success: true, page: data.page, url: pageUrl, adminUrl });
+  } catch (err: any) {
+    console.error('Direct publish error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── Image Upload ──────────────────────────────────────────────────────────
 app.use('/uploads', express.static(UPLOADS_DIR));
 app.post('/api/upload', upload.single('image'), (req: any, res) => {

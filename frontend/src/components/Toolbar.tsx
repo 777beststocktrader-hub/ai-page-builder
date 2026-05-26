@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen } from 'lucide-react';
+import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink } from 'lucide-react';
 import ProjectsModal from './ProjectsModal';
+import ShopifyConnectModal, { getShopifyCredentials, clearShopifyCredentials, ShopifyCredentials } from './ShopifyConnectModal';
 import { usePageStore } from '../store/pageStore';
 import { downloadHtml, copyHtml, previewInNewTab, downloadZip } from '../lib/htmlExport';
-import { publishToShopify, getShopFromUrl, isShopifyEmbedded } from '../lib/shopifyPublish';
+import { publishToShopify, isShopifyEmbedded } from '../lib/shopifyPublish';
 import { generatePageTitle } from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -16,15 +17,17 @@ export default function Toolbar() {
   const [showSettings, setShowSettings] = useState(false);
   const [generatingTitle, setGeneratingTitle] = useState(false);
   const [showProjects, setShowProjects] = useState(false);
+  const [showShopifyConnect, setShowShopifyConnect] = useState(false);
+  const [shopifyCreds, setShopifyCreds] = useState<ShopifyCredentials | null>(() => getShopifyCredentials());
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
-  const shop = getShopFromUrl();
   const inShopify = isShopifyEmbedded();
 
   const handlePublishToShopify = async () => {
-    if (!shop) {
-      toast.error('No Shopify store connected. Open this app from your Shopify admin.');
+    const creds = getShopifyCredentials();
+    if (!creds && !isShopifyEmbedded()) {
+      setShowShopifyConnect(true);
       return;
     }
     if (page.blocks.length === 0) {
@@ -33,9 +36,12 @@ export default function Toolbar() {
     }
     setPublishing(true);
     try {
-      const { url } = await publishToShopify(page, shop);
+      const { url, adminUrl } = await publishToShopify(page, theme) as any;
       setPublishedUrl(url);
-      toast.success('Page published to Shopify!', { duration: 5000 });
+      toast.success(
+        <span>Page live! <a href={adminUrl || url} target="_blank" rel="noopener noreferrer" className="underline">View in Shopify</a></span>,
+        { duration: 6000 }
+      );
     } catch (err: any) {
       toast.error(err.message || 'Publish failed');
     } finally {
@@ -50,6 +56,12 @@ export default function Toolbar() {
   return (
     <>
     {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
+    {showShopifyConnect && (
+      <ShopifyConnectModal
+        onClose={() => setShowShopifyConnect(false)}
+        onConnected={(creds) => { setShopifyCreds(creds); toast.success(`Connected to ${creds.shop}!`); }}
+      />
+    )}
     {showSettings && (
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
@@ -263,6 +275,34 @@ export default function Toolbar() {
           </button>
         </div>
 
+        {/* Shopify connect indicator */}
+        {shopifyCreds ? (
+          <button
+            onClick={() => {
+              if (confirm(`Disconnect ${shopifyCreds.shop}?`)) {
+                clearShopifyCredentials();
+                setShopifyCreds(null);
+                setPublishedUrl(null);
+                toast.success('Disconnected');
+              }
+            }}
+            title={`Connected to ${shopifyCreds.shop} — click to disconnect`}
+            className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 text-xs text-green-400 hover:text-red-400 bg-green-900/20 hover:bg-red-900/20 border border-green-800/40 hover:border-red-800/40 rounded-md transition-all"
+          >
+            <Link size={11} />
+            <span className="max-w-[100px] truncate">{shopifyCreds.shop.replace('.myshopify.com', '')}</span>
+          </button>
+        ) : !isShopifyEmbedded() && (
+          <button
+            onClick={() => setShowShopifyConnect(true)}
+            title="Connect your Shopify store"
+            className="hidden sm:flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 hover:text-green-400 bg-slate-800 hover:bg-green-900/20 border border-slate-700 hover:border-green-800/40 rounded-md transition-all"
+          >
+            <Unlink size={11} />
+            Connect Store
+          </button>
+        )}
+
         {publishedUrl ? (
           <a
             href={publishedUrl}
@@ -277,7 +317,7 @@ export default function Toolbar() {
           <button
             onClick={handlePublishToShopify}
             disabled={publishing}
-            title={shop ? `Publish to ${shop}` : 'Open from Shopify admin to publish'}
+            title={shopifyCreds ? `Publish to ${shopifyCreds.shop}` : 'Connect a store to publish'}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-sm font-medium transition-all"
           >
             {publishing ? <Loader2 size={14} className="animate-spin" /> : <ShoppingBag size={14} />}
