@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, FolderOpen, Clock } from 'lucide-react';
-import { getAllProjects, loadProject, deleteProject, getBlockEmoji, ProjectMeta } from '../lib/projects';
+import { X, Plus, Trash2, FolderOpen, Clock, Copy } from 'lucide-react';
+import { getAllProjects, loadProject, deleteProject, duplicateProject, getBlockEmoji, ProjectMeta } from '../lib/projects';
 import { usePageStore } from '../store/pageStore';
 import toast from 'react-hot-toast';
 
@@ -30,6 +30,17 @@ export default function ProjectsModal({ onClose }: Props) {
     deleteProject(id);
     setProjects(getAllProjects());
     toast.success('Project deleted');
+  };
+
+  const handleDuplicate = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newId = duplicateProject(id);
+    if (newId) {
+      setProjects(getAllProjects());
+      toast.success('Page duplicated!');
+    } else {
+      toast.error('Could not duplicate page');
+    }
   };
 
   const handleNew = () => {
@@ -99,13 +110,22 @@ export default function ProjectsModal({ onClose }: Props) {
                     <Clock size={10} />
                     {timeAgo(p.updatedAt)}
                   </div>
-                  <button
-                    onClick={(e) => handleDelete(p.id, p.title, e)}
-                    className="absolute top-2 right-2 p-1.5 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-red-950/30"
-                    title="Delete"
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={(e) => handleDuplicate(p.id, e)}
+                      className="p-1.5 text-slate-600 hover:text-blue-400 rounded-md hover:bg-blue-950/30"
+                      title="Duplicate page"
+                    >
+                      <Copy size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(p.id, p.title, e)}
+                      className="p-1.5 text-slate-600 hover:text-red-400 rounded-md hover:bg-red-950/30"
+                      title="Delete"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </button>
               ))}
             </div>

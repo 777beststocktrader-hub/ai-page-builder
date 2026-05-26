@@ -2475,6 +2475,27 @@ function handleContact(e){
   </div>
 </section>`,
   },
+  {
+    type: 'custom-html',
+    label: 'Custom HTML',
+    emoji: '🧩',
+    category: 'Layout',
+    fields: [
+      { key: 'html', label: 'HTML Code', type: 'textarea', placeholder: '<section style="padding:60px;text-align:center;">\n  <h2>Custom Section</h2>\n</section>' },
+      { key: 'height', label: 'Preview Height (px)', type: 'text', placeholder: '200' },
+    ],
+    defaultData: {
+      html: '<section style="padding:60px 32px;text-align:center;background:#f8fafc;">\n  <h2 style="font-size:2rem;font-weight:700;color:#0f172a;margin-bottom:16px;">Custom Section</h2>\n  <p style="color:#64748b;max-width:600px;margin:0 auto;">Add any HTML here. Use inline styles for best results.</p>\n</section>',
+      height: '200',
+    },
+    renderCanvas: (data) => (
+      <div
+        style={{ minHeight: `${parseInt(data.height) || 200}px` }}
+        dangerouslySetInnerHTML={{ __html: data.html || '' }}
+      />
+    ),
+    exportHtml: (data) => data.html || '',
+  },
 ];
 
 export default BLOCK_DEFS;

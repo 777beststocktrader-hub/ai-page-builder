@@ -61,6 +61,17 @@ export function deleteProject(id: string): void {
   } catch {}
 }
 
+export function duplicateProject(id: string): string | null {
+  try {
+    const data = loadProject(id);
+    if (!data) return null;
+    const newId = 'p_' + Math.random().toString(36).slice(2, 10);
+    const newPage = { ...data.page, id: newId, title: data.page.title + ' (copy)' };
+    saveProject(newPage, data.pageGoal, data.theme);
+    return newId;
+  } catch { return null; }
+}
+
 export function getBlockEmoji(type: string): string {
   const map: Record<string, string> = {
     hero: '🦸', features: '✨', pricing: '💰', testimonials: '💬',
