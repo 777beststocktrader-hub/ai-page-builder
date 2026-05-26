@@ -556,13 +556,16 @@ const BLOCK_DEFS: BlockDef[] = [
     fields: [
       { key: 'title', label: 'Section Title', type: 'text' },
       { key: 'subtitle', label: 'Subtitle', type: 'text' },
+      { key: 'showToggle', label: 'Show Monthly/Annual Toggle', type: 'select', options: [{ value: 'false', label: 'Monthly only' }, { value: 'true', label: 'Show toggle' }] },
+      { key: 'annualDiscount', label: 'Annual Discount Label', type: 'text', placeholder: 'Save 20%' },
       {
         key: 'plans',
         label: 'Pricing Plans',
         type: 'array',
         arrayItemFields: [
           { key: 'name', label: 'Plan Name', type: 'text' },
-          { key: 'price', label: 'Price', type: 'text' },
+          { key: 'price', label: 'Monthly Price', type: 'text' },
+          { key: 'priceAnnual', label: 'Annual Price (per month)', type: 'text' },
           { key: 'period', label: 'Period (e.g. /month)', type: 'text' },
           { key: 'description', label: 'Description', type: 'text' },
           { key: 'cta', label: 'Button Text', type: 'text' },
@@ -574,77 +577,110 @@ const BLOCK_DEFS: BlockDef[] = [
     defaultData: {
       title: 'Simple, Transparent Pricing',
       subtitle: 'No hidden fees. Cancel anytime.',
+      showToggle: 'true',
+      annualDiscount: 'Save 20%',
       plans: [
-        { name: 'Starter', price: '$0', period: '/month', description: 'Perfect for side projects', cta: 'Get Started', highlighted: 'false', features: '5 pages,AI generations,HTML export,Community support' },
-        { name: 'Pro', price: '$29', period: '/month', description: 'For growing businesses', cta: 'Start Free Trial', highlighted: 'true', features: 'Unlimited pages,Unlimited AI,Custom domain,Priority support,Analytics,Team collaboration' },
-        { name: 'Enterprise', price: '$99', period: '/month', description: 'For large teams', cta: 'Contact Sales', highlighted: 'false', features: 'Everything in Pro,SSO login,Custom AI training,SLA guarantee,Dedicated support' },
+        { name: 'Starter', price: '$0', priceAnnual: '$0', period: '/month', description: 'Perfect for side projects', cta: 'Get Started', highlighted: 'false', features: '5 pages,AI generations,HTML export,Community support' },
+        { name: 'Pro', price: '$29', priceAnnual: '$23', period: '/month', description: 'For growing businesses', cta: 'Start Free Trial', highlighted: 'true', features: 'Unlimited pages,Unlimited AI,Custom domain,Priority support,Analytics,Team collaboration' },
+        { name: 'Enterprise', price: '$99', priceAnnual: '$79', period: '/month', description: 'For large teams', cta: 'Contact Sales', highlighted: 'false', features: 'Everything in Pro,SSO login,Custom AI training,SLA guarantee,Dedicated support' },
       ],
     },
-    renderCanvas: (data, onUpdate) => (
-      <section className="py-20 px-8 bg-slate-50">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <IE as="h2" value={data.title} fieldKey="title" onUpdate={onUpdate}
-              className="text-4xl font-bold text-gray-900 mb-3 block" />
-            <IE as="p" value={data.subtitle} fieldKey="subtitle" onUpdate={onUpdate}
-              className="text-lg text-gray-500 block" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {data.plans?.map((plan: any, i: number) => {
-              const isHighlighted = plan.highlighted === 'true';
-              const features = typeof plan.features === 'string' ? plan.features.split(',') : plan.features || [];
-              return (
-                <div key={i} className={`rounded-2xl p-8 ${isHighlighted ? 'bg-indigo-600 text-white shadow-2xl scale-105' : 'bg-white border border-gray-200'}`}>
-                  <div className="mb-6">
-                    <p className={`text-sm font-semibold uppercase tracking-wider mb-2 ${isHighlighted ? 'text-indigo-200' : 'text-indigo-600'}`}>{plan.name}</p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold">{plan.price}</span>
-                      <span className={`text-sm ${isHighlighted ? 'text-indigo-200' : 'text-gray-500'}`}>{plan.period}</span>
-                    </div>
-                    <p className={`text-sm mt-2 ${isHighlighted ? 'text-indigo-200' : 'text-gray-500'}`}>{plan.description}</p>
+    renderCanvas: (data, onUpdate) => {
+      const showToggle = data.showToggle === 'true';
+      return (
+        <section className="py-20 px-8 bg-slate-50">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <IE as="h2" value={data.title} fieldKey="title" onUpdate={onUpdate}
+                className="text-4xl font-bold text-gray-900 mb-3 block" />
+              <IE as="p" value={data.subtitle} fieldKey="subtitle" onUpdate={onUpdate}
+                className="text-lg text-gray-500 block" />
+              {showToggle && (
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <span className="text-sm text-gray-600 font-medium">Monthly</span>
+                  <div className="w-12 h-6 bg-indigo-600 rounded-full relative cursor-pointer">
+                    <div className="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5" />
                   </div>
-                  <ul className="space-y-3 mb-8">
-                    {features.map((f: string, j: number) => (
-                      <li key={j} className="flex items-center gap-2 text-sm">
-                        <span>✓</span>
-                        <span className={isHighlighted ? 'text-indigo-100' : 'text-gray-600'}>{f.trim()}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <a href="#" className={`block text-center py-3 rounded-xl font-semibold transition-all ${isHighlighted ? 'bg-white text-indigo-600 hover:bg-indigo-50' : 'border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50'}`}>
-                    {plan.cta}
-                  </a>
+                  <span className="text-sm font-semibold text-gray-900">Annual</span>
+                  {data.annualDiscount && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">{data.annualDiscount}</span>
+                  )}
                 </div>
-              );
-            })}
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {data.plans?.map((plan: any, i: number) => {
+                const isHighlighted = plan.highlighted === 'true';
+                const features = typeof plan.features === 'string' ? plan.features.split(',') : plan.features || [];
+                return (
+                  <div key={i} className={`rounded-2xl p-8 ${isHighlighted ? 'bg-indigo-600 text-white shadow-2xl scale-105' : 'bg-white border border-gray-200'}`}>
+                    <div className="mb-6">
+                      <p className={`text-sm font-semibold uppercase tracking-wider mb-2 ${isHighlighted ? 'text-indigo-200' : 'text-indigo-600'}`}>{plan.name}</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold">{plan.priceAnnual || plan.price}</span>
+                        <span className={`text-sm ${isHighlighted ? 'text-indigo-200' : 'text-gray-500'}`}>{plan.period}</span>
+                      </div>
+                      <p className={`text-sm mt-2 ${isHighlighted ? 'text-indigo-200' : 'text-gray-500'}`}>{plan.description}</p>
+                    </div>
+                    <ul className="space-y-3 mb-8">
+                      {features.map((f: string, j: number) => (
+                        <li key={j} className="flex items-center gap-2 text-sm">
+                          <span>✓</span>
+                          <span className={isHighlighted ? 'text-indigo-100' : 'text-gray-600'}>{f.trim()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <a href="#" className={`block text-center py-3 rounded-xl font-semibold transition-all ${isHighlighted ? 'bg-white text-indigo-600 hover:bg-indigo-50' : 'border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50'}`}>
+                      {plan.cta}
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </section>
-    ),
-    exportHtml: (data) => `
-<section style="padding:80px 32px;background:#f8fafc;">
-  <div style="max-width:960px;margin:0 auto;">
-    <div style="text-align:center;margin-bottom:64px;">
-      <h2 style="font-size:2.5rem;font-weight:700;color:#111827;margin-bottom:12px;">${data.title}</h2>
-      <p style="font-size:1.125rem;color:#6b7280;">${data.subtitle}</p>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;align-items:start;">
-      ${(data.plans || []).map((plan: any) => {
+        </section>
+      );
+    },
+    exportHtml: (data) => {
+      const showToggle = data.showToggle === 'true';
+      const plans = data.plans || [];
+      const plansHtml = (isAnnual: boolean) => plans.map((plan: any) => {
         const isHL = plan.highlighted === 'true';
         const features = typeof plan.features === 'string' ? plan.features.split(',') : plan.features || [];
+        const price = isAnnual && plan.priceAnnual ? plan.priceAnnual : plan.price;
         return `<div style="border-radius:16px;padding:32px;${isHL ? 'background:#4f46e5;color:#fff;transform:scale(1.05);box-shadow:0 25px 50px rgba(79,70,229,0.3);' : 'background:#fff;border:1px solid #e5e7eb;'}">
           <p style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;color:${isHL ? 'rgba(199,210,254,1)' : '#4f46e5'};">${plan.name}</p>
-          <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:8px;"><span style="font-size:2.5rem;font-weight:700;">${plan.price}</span><span style="color:${isHL ? 'rgba(199,210,254,1)' : '#9ca3af'};">${plan.period}</span></div>
+          <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:8px;"><span style="font-size:2.5rem;font-weight:700;">${price}</span><span style="color:${isHL ? 'rgba(199,210,254,1)' : '#9ca3af'};">${plan.period}</span></div>
           <p style="font-size:14px;color:${isHL ? 'rgba(199,210,254,1)' : '#6b7280'};margin-bottom:24px;">${plan.description}</p>
           <ul style="list-style:none;margin:0 0 32px;padding:0;">
             ${features.map((f: string) => `<li style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:12px;color:${isHL ? 'rgba(224,231,255,1)' : '#374151'};"><span>✓</span>${f.trim()}</li>`).join('')}
           </ul>
           <a href="#" style="display:block;text-align:center;padding:12px;border-radius:12px;font-weight:600;${isHL ? 'background:#fff;color:#4f46e5;' : 'border:2px solid #4f46e5;color:#4f46e5;'}">${plan.cta}</a>
         </div>`;
-      }).join('')}
+      }).join('');
+
+      const toggleHtml = showToggle ? `
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:24px;">
+      <span id="price-label-m" style="font-size:14px;color:#111827;font-weight:600;">Monthly</span>
+      <button id="price-toggle" onclick="(function(){var a=document.getElementById('price-annual')===null?false:true;var mon=document.getElementById('price-monthly');var ann=document.getElementById('price-annual');var tog=document.getElementById('price-toggle');var dot=tog.querySelector('span');if(mon.style.display!=='none'){mon.style.display='none';ann.style.display='grid';dot.style.transform='translateX(20px)';document.getElementById('price-label-a').style.fontWeight='700';document.getElementById('price-label-m').style.fontWeight='400';}else{ann.style.display='none';mon.style.display='grid';dot.style.transform='translateX(0)';document.getElementById('price-label-m').style.fontWeight='700';document.getElementById('price-label-a').style.fontWeight='400';}})()" style="width:48px;height:26px;background:#4f46e5;border-radius:13px;position:relative;cursor:pointer;border:none;flex-shrink:0;">
+        <span style="position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform 0.2s;display:block;"></span>
+      </button>
+      <span id="price-label-a" style="font-size:14px;color:#111827;font-weight:400;">Annual</span>
+      ${data.annualDiscount ? `<span style="font-size:12px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:999px;font-weight:600;">${data.annualDiscount}</span>` : ''}
+    </div>` : '';
+
+      return `
+<section style="padding:80px 32px;background:#f8fafc;">
+  <div style="max-width:960px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:${showToggle ? '24px' : '64px'};">
+      <h2 style="font-size:2.5rem;font-weight:700;color:#111827;margin-bottom:12px;">${data.title}</h2>
+      <p style="font-size:1.125rem;color:#6b7280;">${data.subtitle}</p>
+      ${toggleHtml}
     </div>
+    ${showToggle ? `<div id="price-monthly" style="margin-top:40px;display:grid;grid-template-columns:repeat(3,1fr);gap:32px;align-items:start;">${plansHtml(false)}</div><div id="price-annual" style="margin-top:40px;display:none;grid-template-columns:repeat(3,1fr);gap:32px;align-items:start;">${plansHtml(true)}</div>` : `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;align-items:start;">${plansHtml(false)}</div>`}
   </div>
-</section>`,
+</section>`;
+    },
   },
 
   {

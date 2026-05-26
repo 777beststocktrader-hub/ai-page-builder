@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Sparkles, Loader2, Search, LayoutTemplate, List, EyeOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import BLOCK_DEFS from '../blocks/blockDefs';
 import { usePageStore } from '../store/pageStore';
-import { generateFullPage } from '../lib/api';
+import { generateFullPage, generateBlockContent } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const CATEGORIES = ['Navigation', 'Hero', 'Content', 'Media', 'Social', 'CTA', 'Footer'];
@@ -126,10 +126,12 @@ const PAGE_TEMPLATES = [
 ];
 
 export default function BlockLibrary() {
-  const { addBlock, page, pageGoal, setPageGoal, setPageTitle, loadPage, selectBlock, selectedBlockId, moveBlock, deleteBlock, toggleBlockVisibility } = usePageStore();
+  const { addBlock, page, pageGoal, setPageGoal, setPageTitle, loadPage, selectBlock, selectedBlockId, moveBlock, deleteBlock, toggleBlockVisibility, updateBlock } = usePageStore();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [polishing, setPolishing] = useState(false);
+  const [polishProgress, setPolishProgress] = useState(0);
   const [tab, setTab] = useState<'blocks' | 'templates' | 'outline'>('blocks');
 
   const handleLoadTemplate = (template: typeof PAGE_TEMPLATES[0]) => {
@@ -154,6 +156,38 @@ export default function BlockLibrary() {
     if (!def) return;
     addBlock(type, { ...def.defaultData });
     toast.success(`${def.label} added`);
+  };
+
+  const handlePolishPage = async () => {
+    const writableBlocks = page.blocks.filter((b) => !['navbar', 'banner', 'footer'].includes(b.type));
+    if (writableBlocks.length === 0) { toast.error('Add some content sections first'); return; }
+    setPolishing(true);
+    setPolishProgress(0);
+    const toastId = toast.loading('Polishing page with AI…');
+    try {
+      for (let i = 0; i < writableBlocks.length; i++) {
+        const block = writableBlocks[i];
+        setPolishProgress(Math.round(((i + 1) / writableBlocks.length) * 100));
+        const def = BLOCK_DEFS.find((d) => d.type === block.type);
+        if (!def) continue;
+        try {
+          const newData = await generateBlockContent(
+            block.type,
+            'Make this more compelling, benefit-focused, and conversion-optimized. Keep the same structure and layout. Improve the headlines and copy only.',
+            block.data,
+            'marketing',
+            pageGoal || undefined
+          );
+          updateBlock(block.id, { ...block.data, ...newData });
+        } catch {}
+      }
+      toast.success(`Polished ${writableBlocks.length} sections!`, { id: toastId, duration: 4000 });
+    } catch (err: any) {
+      toast.error('Polish failed — please try again', { id: toastId });
+    } finally {
+      setPolishing(false);
+      setPolishProgress(0);
+    }
   };
 
   const handleGeneratePage = async () => {
@@ -245,16 +279,31 @@ export default function BlockLibrary() {
           rows={2}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleGeneratePage(); }}
         />
-        <button
-          onClick={handleGeneratePage}
-          disabled={generating || !pageGoal.trim()}
-          className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-all"
-        >
-          {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-          {generating ? 'Building with AI…' : 'Generate Full Page'}
-        </button>
-        {generating && (
-          <p className="text-xs text-indigo-400 text-center mt-1.5 animate-pulse">Writing real copy for every section…</p>
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={handleGeneratePage}
+            disabled={generating || polishing || !pageGoal.trim()}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-all"
+          >
+            {generating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            {generating ? 'Building…' : 'Generate Page'}
+          </button>
+          {page.blocks.length > 0 && (
+            <button
+              onClick={handlePolishPage}
+              disabled={generating || polishing}
+              title="Rewrite all section copy to be more compelling"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-all"
+            >
+              {polishing ? <Loader2 size={12} className="animate-spin" /> : '✨'}
+              {polishing ? `${polishProgress}%` : 'Polish'}
+            </button>
+          )}
+        </div>
+        {(generating || polishing) && (
+          <p className="text-xs text-indigo-400 text-center mt-1.5 animate-pulse">
+            {generating ? 'Writing real copy for every section…' : `Polishing section ${Math.round(polishProgress / 100 * page.blocks.length)} of ${page.blocks.length}…`}
+          </p>
         )}
       </div>
 
