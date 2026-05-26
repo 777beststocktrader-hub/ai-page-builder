@@ -106,11 +106,29 @@ export function exportPageToHtml(page: Page, theme?: Theme): string {
     ${page.customCss ? page.customCss : ''}
   </style>
   ${page.trackingCode ? page.trackingCode : ''}
+  <style>
+    #back-to-top{position:fixed;bottom:24px;right:24px;z-index:999;width:44px;height:44px;border-radius:50%;background:#4f46e5;color:#fff;border:none;font-size:20px;cursor:pointer;opacity:0;transform:translateY(12px);transition:opacity 0.3s,transform 0.3s;box-shadow:0 4px 16px rgba(79,70,229,0.4);display:flex;align-items:center;justify-content:center;}
+    #back-to-top.visible{opacity:1;transform:translateY(0);}
+    #back-to-top:hover{background:#4338ca;}
+    #scroll-progress{position:fixed;top:0;left:0;z-index:9999;height:3px;background:linear-gradient(90deg,#4f46e5,#7c3aed);width:0%;transition:width 0.1s linear;}
+  </style>
 </head>
 <body>
+<div id="scroll-progress"></div>
 ${bodyContent}
+<button id="back-to-top" aria-label="Back to top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 <script>
 (function(){
+  // Scroll progress + back to top
+  var prog = document.getElementById('scroll-progress');
+  var btn = document.getElementById('back-to-top');
+  window.addEventListener('scroll', function(){
+    var scrolled = document.documentElement.scrollTop;
+    var total = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    if (prog) prog.style.width = (total > 0 ? (scrolled / total * 100) : 0) + '%';
+    if (btn) { if (scrolled > 400) btn.classList.add('visible'); else btn.classList.remove('visible'); }
+  }, { passive: true });
+
   // Scroll reveal
   var els = document.querySelectorAll('section, footer, header, nav');
   if (!('IntersectionObserver' in window)) {
