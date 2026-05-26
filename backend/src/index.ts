@@ -256,7 +256,7 @@ Rules:
     }
 
     // Filter out any blocks with unknown types
-    const VALID_TYPES = new Set(['banner','navbar','hero','features','pricing','testimonials','cta','faq','text-content','stats','footer','video','logo-cloud','newsletter','richtext','contact','steps','comparison','team','countdown','gallery','timeline','embed']);
+    const VALID_TYPES = new Set(['banner','navbar','hero','features','pricing','testimonials','cta','faq','text-content','stats','footer','video','logo-cloud','newsletter','richtext','contact','steps','comparison','team','countdown','gallery','timeline','embed','divider','testimonial-single','cta-banner']);
     data.blocks = data.blocks.filter((b: any) => VALID_TYPES.has(b.type));
 
     res.json({ success: true, ...data });
@@ -406,6 +406,34 @@ Respond:
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// ── Page Share (preview link) ─────────────────────────────────────────────
+const shareStore = new Map<string, { html: string; title: string; createdAt: number }>();
+const SHARE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+app.post('/api/share', (req, res) => {
+  const { html, title } = req.body;
+  if (!html || typeof html !== 'string') {
+    return res.status(400).json({ success: false, error: 'html required' });
+  }
+  // Clean up expired entries
+  for (const [k, v] of shareStore) {
+    if (Date.now() - v.createdAt > SHARE_TTL_MS) shareStore.delete(k);
+  }
+  const id = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 5);
+  shareStore.set(id, { html, title: title || 'Preview', createdAt: Date.now() });
+  const origin = `${req.protocol}://${req.get('host')}`;
+  res.json({ success: true, shareId: id, url: `${origin}/share/${id}` });
+});
+
+app.get('/share/:id', (req, res) => {
+  const entry = shareStore.get(req.params.id);
+  if (!entry) {
+    return res.status(404).send('<html><body style="font-family:sans-serif;padding:40px;text-align:center"><h2>Preview expired or not found</h2><p>Share links are valid for 48 hours.</p></body></html>');
+  }
+  res.setHeader('Content-Type', 'text/html');
+  res.send(entry.html);
 });
 
 // ── Serve React frontend in production ────────────────────────────────────

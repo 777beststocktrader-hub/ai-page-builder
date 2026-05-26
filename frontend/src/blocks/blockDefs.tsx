@@ -2198,6 +2198,216 @@ function handleContact(e){
 </section>`;
     },
   },
+
+  // ── Divider / Spacer ──────────────────────────────────────────────────────
+  {
+    type: 'divider',
+    label: 'Divider / Spacer',
+    emoji: '➖',
+    category: 'Layout',
+    fields: [
+      { key: 'style', label: 'Style', type: 'select', options: [
+        { value: 'line', label: 'Thin line' },
+        { value: 'thick', label: 'Thick line' },
+        { value: 'dots', label: 'Dotted' },
+        { value: 'wave', label: 'Wavy' },
+        { value: 'spacer', label: 'Spacer (invisible)' },
+      ]},
+      { key: 'color', label: 'Color', type: 'color' },
+      { key: 'spacing', label: 'Vertical Spacing', type: 'select', options: [
+        { value: 'sm', label: 'Small (24px)' },
+        { value: 'md', label: 'Medium (48px)' },
+        { value: 'lg', label: 'Large (80px)' },
+        { value: 'xl', label: 'Extra Large (120px)' },
+      ]},
+      { key: 'text', label: 'Label (optional)', type: 'text', placeholder: 'or' },
+    ],
+    defaultData: { style: 'line', color: '#e2e8f0', spacing: 'md', text: '' },
+    renderCanvas: (data, onUpdate) => {
+      const py = { sm: 'py-6', md: 'py-12', lg: 'py-20', xl: 'py-28' }[data.spacing as string] || 'py-12';
+      return (
+        <div className={`px-8 ${py} flex items-center justify-center`}>
+          {data.style === 'spacer' ? (
+            <div className="w-full flex items-center justify-center text-slate-600 text-xs opacity-50">
+              ↕ Spacer ({data.spacing})
+            </div>
+          ) : data.style === 'dots' ? (
+            <div className="flex items-center gap-3">
+              {[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: data.color }} />)}
+            </div>
+          ) : data.style === 'wave' ? (
+            <div className="w-full flex items-center gap-4">
+              <div className="flex-1 h-px" style={{ background: `repeating-linear-gradient(90deg, ${data.color} 0, ${data.color} 5px, transparent 5px, transparent 10px)` }} />
+              {data.text && <IE as="span" value={data.text} fieldKey="text" onUpdate={onUpdate} className="text-sm font-medium whitespace-nowrap" style={{ color: data.color }} />}
+              <div className="flex-1 h-px" style={{ background: `repeating-linear-gradient(90deg, ${data.color} 0, ${data.color} 5px, transparent 5px, transparent 10px)` }} />
+            </div>
+          ) : (
+            <div className="w-full flex items-center gap-4">
+              {data.text && <div className="flex-1 h-px" style={{ backgroundColor: data.color, height: data.style === 'thick' ? '3px' : '1px' }} />}
+              {data.text ? (
+                <IE as="span" value={data.text} fieldKey="text" onUpdate={onUpdate} className="text-sm font-medium text-gray-400 whitespace-nowrap" />
+              ) : (
+                <div className="w-full" style={{ backgroundColor: data.color, height: data.style === 'thick' ? '3px' : '1px' }} />
+              )}
+              {data.text && <div className="flex-1 h-px" style={{ backgroundColor: data.color, height: data.style === 'thick' ? '3px' : '1px' }} />}
+            </div>
+          )}
+        </div>
+      );
+    },
+    exportHtml: (data) => {
+      const py = { sm: '24px', md: '48px', lg: '80px', xl: '120px' }[data.spacing as string] || '48px';
+      if (data.style === 'spacer') return `<div style="height:${py};"></div>`;
+      if (data.style === 'dots') return `<div style="padding:${py} 32px;display:flex;justify-content:center;gap:12px;">${[0,1,2].map(() => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${data.color};"></span>`).join('')}</div>`;
+      const lineH = data.style === 'thick' ? '3px' : '1px';
+      const border = data.style === 'dots' ? `border-top: 2px dotted ${data.color}` : `border-top: ${lineH} solid ${data.color}`;
+      if (data.text) return `<div style="padding:${py} 32px;display:flex;align-items:center;gap:16px;"><div style="flex:1;${border};"></div><span style="color:#9ca3af;font-size:0.875rem;font-weight:500;white-space:nowrap;">${data.text}</span><div style="flex:1;${border};"></div></div>`;
+      return `<div style="padding:${py} 32px;"><div style="${border};"></div></div>`;
+    },
+  },
+
+  // ── Rich Testimonial ──────────────────────────────────────────────────────
+  {
+    type: 'testimonial-single',
+    label: 'Big Testimonial',
+    emoji: '💬',
+    category: 'Social Proof',
+    fields: [
+      { key: 'quote', label: 'Quote', type: 'textarea', placeholder: 'This changed everything for us...' },
+      { key: 'name', label: 'Author Name', type: 'text' },
+      { key: 'role', label: 'Role / Company', type: 'text' },
+      { key: 'avatarUrl', label: 'Avatar Image', type: 'url' },
+      { key: 'stars', label: 'Stars (0 = hide)', type: 'select', options: [
+        { value: '0', label: 'No stars' },
+        { value: '4', label: '4 stars' },
+        { value: '5', label: '5 stars' },
+      ]},
+      { key: 'bgColor', label: 'Background', type: 'color' },
+      { key: 'accentColor', label: 'Accent Color', type: 'color' },
+    ],
+    defaultData: {
+      quote: '"This tool saved us 40+ hours a month. Our landing pages used to take weeks — now we launch in minutes. The AI generation is genuinely impressive."',
+      name: 'Sarah Mitchell',
+      role: 'Head of Growth · Acme Corp',
+      avatarUrl: '',
+      stars: '5',
+      bgColor: '#f8fafc',
+      accentColor: '#4f46e5',
+    },
+    renderCanvas: (data, onUpdate) => (
+      <section className="py-20 px-8" style={{ backgroundColor: data.bgColor }}>
+        <div className="max-w-3xl mx-auto text-center">
+          {parseInt(data.stars) > 0 && (
+            <div className="flex justify-center gap-1 mb-6">
+              {Array.from({ length: parseInt(data.stars) }).map((_, i) => (
+                <span key={i} className="text-2xl" style={{ color: data.accentColor }}>★</span>
+              ))}
+            </div>
+          )}
+          <blockquote>
+            <IE as="p" value={data.quote} fieldKey="quote" onUpdate={onUpdate}
+              className="text-2xl md:text-3xl font-medium text-gray-900 leading-relaxed mb-8 block italic" />
+          </blockquote>
+          <div className="flex items-center justify-center gap-4">
+            {data.avatarUrl ? (
+              <img src={data.avatarUrl} alt={data.name} className="w-14 h-14 rounded-full object-cover" />
+            ) : (
+              <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold" style={{ backgroundColor: data.accentColor }}>
+                {(data.name || 'A').charAt(0)}
+              </div>
+            )}
+            <div className="text-left">
+              <IE as="p" value={data.name} fieldKey="name" onUpdate={onUpdate}
+                className="font-bold text-gray-900 block" />
+              <IE as="p" value={data.role} fieldKey="role" onUpdate={onUpdate}
+                className="text-gray-500 text-sm block" />
+            </div>
+          </div>
+        </div>
+      </section>
+    ),
+    exportHtml: (data) => {
+      const stars = parseInt(data.stars) > 0 ? `<div style="display:flex;justify-content:center;gap:4px;margin-bottom:24px;">${Array.from({length: parseInt(data.stars)}).map(() => `<span style="font-size:1.5rem;color:${data.accentColor};">★</span>`).join('')}</div>` : '';
+      const avatar = data.avatarUrl
+        ? `<img src="${data.avatarUrl}" alt="${data.name}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">`
+        : `<div style="width:56px;height:56px;border-radius:50%;background:${data.accentColor};display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.25rem;font-weight:700;flex-shrink:0;">${(data.name||'A').charAt(0)}</div>`;
+      return `
+<section style="padding:80px 32px;background:${data.bgColor};">
+  <div style="max-width:768px;margin:0 auto;text-align:center;">
+    ${stars}
+    <blockquote style="font-size:clamp(1.25rem,3vw,1.75rem);font-weight:500;color:#111827;line-height:1.6;margin:0 0 32px;font-style:italic;">${data.quote}</blockquote>
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px;">
+      ${avatar}
+      <div style="text-align:left;">
+        <p style="font-weight:700;color:#111827;margin:0 0 4px;">${data.name}</p>
+        <p style="color:#6b7280;font-size:0.875rem;margin:0;">${data.role}</p>
+      </div>
+    </div>
+  </div>
+</section>`;
+    },
+  },
+
+  // ── Pricing Table (simple 2-col) ──────────────────────────────────────────
+  {
+    type: 'cta-banner',
+    label: 'CTA Banner',
+    emoji: '🔥',
+    category: 'Conversion',
+    fields: [
+      { key: 'headline', label: 'Headline', type: 'text' },
+      { key: 'subtext', label: 'Subtext', type: 'textarea' },
+      { key: 'btnText', label: 'Button Text', type: 'text' },
+      { key: 'btnLink', label: 'Button Link', type: 'url' },
+      { key: 'secondBtnText', label: 'Secondary Button', type: 'text', placeholder: 'Learn more' },
+      { key: 'bgColor', label: 'Background', type: 'color' },
+      { key: 'textColor', label: 'Text Color', type: 'color' },
+      { key: 'btnColor', label: 'Button Color', type: 'color' },
+    ],
+    defaultData: {
+      headline: 'Ready to grow your business?',
+      subtext: 'Join 10,000+ companies already using our platform. Get started free — no credit card required.',
+      btnText: 'Start Free Trial',
+      btnLink: '#',
+      secondBtnText: 'View Demo',
+      bgColor: '#4f46e5',
+      textColor: '#ffffff',
+      btnColor: '#ffffff',
+    },
+    renderCanvas: (data, onUpdate) => (
+      <section className="py-20 px-8" style={{ backgroundColor: data.bgColor }}>
+        <div className="max-w-3xl mx-auto text-center">
+          <IE as="h2" value={data.headline} fieldKey="headline" onUpdate={onUpdate}
+            className="text-4xl md:text-5xl font-black mb-4 block" style={{ color: data.textColor }} />
+          <IE as="p" value={data.subtext} fieldKey="subtext" onUpdate={onUpdate}
+            className="text-lg mb-10 opacity-90 block" style={{ color: data.textColor }} />
+          <div className="flex gap-4 justify-center flex-wrap">
+            <a href={data.btnLink || '#'} className="inline-block px-8 py-4 rounded-xl font-bold text-base transition-all"
+              style={{ backgroundColor: data.btnColor, color: data.bgColor }}>
+              <IE as="span" value={data.btnText} fieldKey="btnText" onUpdate={onUpdate} />
+            </a>
+            {data.secondBtnText && (
+              <a href="#" className="inline-block px-8 py-4 rounded-xl font-bold text-base border-2 transition-all"
+                style={{ color: data.textColor, borderColor: `${data.textColor}60` }}>
+                <IE as="span" value={data.secondBtnText} fieldKey="secondBtnText" onUpdate={onUpdate} />
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
+    ),
+    exportHtml: (data) => `
+<section style="padding:80px 32px;background:${data.bgColor};">
+  <div style="max-width:768px;margin:0 auto;text-align:center;">
+    <h2 style="font-size:clamp(2rem,5vw,3rem);font-weight:900;color:${data.textColor};margin:0 0 16px;">${data.headline}</h2>
+    <p style="font-size:1.125rem;color:${data.textColor};opacity:0.9;margin:0 0 40px;line-height:1.7;">${data.subtext}</p>
+    <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+      <a href="${data.btnLink||'#'}" style="display:inline-block;padding:16px 32px;background:${data.btnColor};color:${data.bgColor};border-radius:12px;font-weight:700;font-size:1rem;">${data.btnText}</a>
+      ${data.secondBtnText ? `<a href="#" style="display:inline-block;padding:16px 32px;color:${data.textColor};border:2px solid ${data.textColor}60;border-radius:12px;font-weight:700;font-size:1rem;">${data.secondBtnText}</a>` : ''}
+    </div>
+  </div>
+</section>`,
+  },
 ];
 
 export default BLOCK_DEFS;

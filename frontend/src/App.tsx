@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Toolbar from './components/Toolbar';
 import BlockLibrary from './components/BlockLibrary';
@@ -7,6 +7,8 @@ import PropertiesPanel from './components/PropertiesPanel';
 import { usePageStore } from './store/pageStore';
 import { exportPageToHtml } from './lib/htmlExport';
 import { saveProject } from './lib/projects';
+import { getBlockDef } from './blocks/blockDefs';
+import { Search, X } from 'lucide-react';
 
 const STORAGE_KEY = 'ai-pb-v1';
 const SAVE_DEBOUNCE_MS = 800;
@@ -33,9 +35,73 @@ function PreviewFrame() {
   );
 }
 
+function BlockSearchOverlay({ onClose }: { onClose: () => void }) {
+  const { page, selectBlock } = usePageStore();
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const results = query.trim().length < 2 ? [] : page.blocks.filter(block => {
+    const text = JSON.stringify(block.data).toLowerCase();
+    const def = getBlockDef(block.type);
+    return text.includes(query.toLowerCase()) || def?.label.toLowerCase().includes(query.toLowerCase());
+  });
+
+  const pick = (id: string) => {
+    selectBlock(id);
+    document.querySelector(`[data-block-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-start justify-center pt-24 px-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full max-w-md bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-700">
+          <Search size={16} className="text-slate-400 flex-shrink-0" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search blocks by content…"
+            className="flex-1 bg-transparent text-white text-sm placeholder-slate-500 focus:outline-none"
+            onKeyDown={e => { if (e.key === 'Escape') onClose(); if (e.key === 'Enter' && results.length > 0) pick(results[0].id); }}
+          />
+          <button onClick={onClose} className="p-1 text-slate-500 hover:text-white rounded"><X size={14} /></button>
+        </div>
+        {query.trim().length >= 2 && (
+          <div className="max-h-80 overflow-y-auto">
+            {results.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">No blocks found</p>
+            ) : results.map(block => {
+              const def = getBlockDef(block.type);
+              const preview = Object.values(block.data).filter(v => typeof v === 'string' && v.length > 2).slice(0, 2).join(' · ').slice(0, 60);
+              return (
+                <button key={block.id} onClick={() => pick(block.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-700 text-left transition-colors border-b border-slate-700/50 last:border-0">
+                  <span className="text-xl flex-shrink-0">{def?.emoji}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white">{def?.label}</p>
+                    <p className="text-xs text-slate-400 truncate">{preview}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {query.trim().length < 2 && (
+          <p className="py-5 text-center text-xs text-slate-600">Type at least 2 characters to search</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const { isPreview, selectedBlockId, deleteBlock, selectBlock, duplicateBlock } = usePageStore();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
 
   // Auto-save to localStorage with debounce
   useEffect(() => {
@@ -95,6 +161,10 @@ export default function App() {
         const s = usePageStore.getState();
         s.setPreview(!s.isPreview);
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f' && !inInput) {
+        e.preventDefault();
+        setShowSearch(true);
+      }
       if (!inInput && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         const state = usePageStore.getState();
         const blocks = state.page.blocks;
@@ -114,6 +184,7 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-slate-900 overflow-hidden">
+      {showSearch && <BlockSearchOverlay onClose={() => setShowSearch(false)} />}
       <Toaster
         position="bottom-center"
         toastOptions={{

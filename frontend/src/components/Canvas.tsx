@@ -23,7 +23,7 @@ import BLOCK_DEFS from '../blocks/blockDefs';
 import toast from 'react-hot-toast';
 
 function getSmartSuggestions(existingTypes: string[]): string[] {
-  const priority = ['hero', 'features', 'testimonials', 'pricing', 'cta', 'steps', 'faq', 'stats', 'newsletter', 'comparison', 'gallery', 'video', 'countdown'];
+  const priority = ['hero', 'features', 'testimonials', 'pricing', 'cta', 'steps', 'faq', 'stats', 'newsletter', 'comparison', 'gallery', 'video', 'countdown', 'team', 'contact', 'testimonial-single', 'cta-banner'];
   const missing = priority.filter((t) => !existingTypes.includes(t));
   return missing.slice(0, 6);
 }

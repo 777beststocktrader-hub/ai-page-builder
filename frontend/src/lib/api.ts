@@ -53,3 +53,9 @@ export async function suggestSections(pageGoal: string): Promise<{ sections: str
   if (!data.success) throw new Error(data.error || 'Suggestion failed');
   return { sections: data.sections || [], tagline: data.tagline || '' };
 }
+
+export async function createShareLink(html: string, title: string): Promise<string> {
+  const { data } = await api.post('/share', { html, title });
+  if (!data.success) throw new Error('Failed to create share link');
+  return data.url as string;
+}

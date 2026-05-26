@@ -315,6 +315,57 @@ function UrlFieldEditor({ value, onChange, placeholder }: { value: any; onChange
   );
 }
 
+function LiveSeoScore({ page }: { page: import('../types').Page }) {
+  const checks = React.useMemo(() => {
+    const titleLen = page.title.length;
+    const descLen = (page.description || '').length;
+    const types = page.blocks.map(b => b.type);
+    const nonNav = page.blocks.filter(b => !['navbar', 'footer', 'banner'].includes(b.type));
+    return [
+      { label: 'Page title', ok: titleLen >= 20 && titleLen <= 70, note: titleLen === 0 ? 'Add a title' : titleLen < 20 ? `Too short (${titleLen} chars)` : titleLen > 70 ? `Too long (${titleLen} chars)` : '' },
+      { label: 'Meta description', ok: descLen >= 80 && descLen <= 160, note: descLen === 0 ? 'Add one below with AI ✨' : descLen < 80 ? `Too short (${descLen}/80)` : descLen > 160 ? `Over limit (${descLen}/160)` : '' },
+      { label: 'Hero / headline', ok: types.includes('hero'), note: 'Add a Hero block' },
+      { label: 'Call to action', ok: types.some(t => ['cta', 'pricing'].includes(t)), note: 'Add a CTA or Pricing block' },
+      { label: 'Social proof', ok: types.some(t => ['testimonials', 'stats', 'comparison'].includes(t)), note: 'Add Testimonials or Stats' },
+      { label: 'Content depth', ok: nonNav.length >= 4, note: `${nonNav.length} section${nonNav.length !== 1 ? 's' : ''} (aim for 4+)` },
+    ];
+  }, [page]);
+  const passed = checks.filter(c => c.ok).length;
+  const score = Math.round((passed / checks.length) * 100);
+  const grade = score >= 90 ? 'A' : score >= 75 ? 'B' : score >= 55 ? 'C' : 'D';
+  const scoreColor = score >= 75 ? 'text-green-400' : score >= 55 ? 'text-yellow-400' : 'text-red-400';
+  const barColor = score >= 75 ? 'bg-green-500' : score >= 55 ? 'bg-yellow-500' : 'bg-red-500';
+  if (page.blocks.length === 0) return null;
+  return (
+    <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <CheckCircle size={11} className="text-indigo-400" />
+          SEO Score
+        </p>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-slate-500">{passed}/{checks.length}</span>
+          <span className={`text-lg font-black leading-none ${scoreColor}`}>{grade}</span>
+        </div>
+      </div>
+      <div className="h-1 bg-slate-700 rounded-full overflow-hidden mb-3">
+        <div className={`h-full rounded-full transition-all duration-700 ${barColor}`} style={{ width: `${score}%` }} />
+      </div>
+      <div className="space-y-1">
+        {checks.map((c, i) => (
+          <div key={i} className="flex items-start gap-1.5">
+            <span className={`text-xs flex-shrink-0 font-bold leading-4 ${c.ok ? 'text-green-400' : 'text-slate-600'}`}>{c.ok ? '✓' : '○'}</span>
+            <div className="min-w-0">
+              <span className={`text-xs leading-4 ${c.ok ? 'text-slate-300' : 'text-slate-500'}`}>{c.label}</span>
+              {!c.ok && c.note && <p className="text-xs text-slate-600 truncate leading-4">{c.note}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EmptyState() {
   const { theme, setTheme, page, setPageDescription, pageGoal, applyBrandColor } = usePageStore();
   const [genSeo, setGenSeo] = useState(false);
@@ -327,6 +378,8 @@ function EmptyState() {
         <p className="text-slate-300 text-sm font-medium mb-1">Click any section to edit</p>
         <p className="text-slate-500 text-xs">Or add blocks from the left panel</p>
       </div>
+
+      <LiveSeoScore page={page} />
 
       {/* Theme Presets */}
       <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
@@ -532,6 +585,7 @@ function EmptyState() {
           { keys: 'Esc', label: 'Deselect' },
           { keys: '↑ / ↓', label: 'Select prev / next block' },
           { keys: 'Ctrl+Shift+P', label: 'Toggle preview mode' },
+          { keys: 'Ctrl+F', label: 'Search blocks' },
         ].map(({ keys, label }) => (
           <div key={keys} className="flex items-center justify-between py-1">
             <span className="text-xs text-slate-500">{label}</span>

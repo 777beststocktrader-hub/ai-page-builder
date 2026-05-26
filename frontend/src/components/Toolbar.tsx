@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink } from 'lucide-react';
+import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2 } from 'lucide-react';
 import ProjectsModal from './ProjectsModal';
 import ShopifyConnectModal, { getShopifyCredentials, clearShopifyCredentials, ShopifyCredentials } from './ShopifyConnectModal';
 import { usePageStore } from '../store/pageStore';
-import { downloadHtml, copyHtml, previewInNewTab, downloadZip } from '../lib/htmlExport';
+import { downloadHtml, copyHtml, previewInNewTab, downloadZip, exportPageToHtml } from '../lib/htmlExport';
 import { publishToShopify, isShopifyEmbedded } from '../lib/shopifyPublish';
-import { generatePageTitle } from '../lib/api';
+import { generatePageTitle, createShareLink } from '../lib/api';
 import toast from 'react-hot-toast';
 
 export default function Toolbar() {
@@ -19,6 +19,7 @@ export default function Toolbar() {
   const [showProjects, setShowProjects] = useState(false);
   const [showShopifyConnect, setShowShopifyConnect] = useState(false);
   const [shopifyCreds, setShopifyCreds] = useState<ShopifyCredentials | null>(() => getShopifyCredentials());
+  const [sharing, setSharing] = useState(false);
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -47,6 +48,20 @@ export default function Toolbar() {
     } finally {
       setPublishing(false);
     }
+  };
+
+  const handleShare = async () => {
+    if (page.blocks.length === 0) { toast.error('Add sections before sharing'); return; }
+    setSharing(true);
+    try {
+      const html = exportPageToHtml(page, theme);
+      const url = await createShareLink(html, page.title);
+      await navigator.clipboard.writeText(url);
+      toast.success('Share link copied to clipboard!', { duration: 5000 });
+    } catch {
+      toast.error('Could not create share link');
+    }
+    setSharing(false);
   };
 
   const savedLabel = savedAt
@@ -243,6 +258,15 @@ export default function Toolbar() {
 
         <div className="w-px h-5 bg-slate-700 mx-1" />
 
+        <button
+          onClick={handleShare}
+          disabled={sharing}
+          title="Create shareable preview link (copies to clipboard)"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md text-sm font-medium transition-all disabled:opacity-50"
+        >
+          {sharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+          <span className="hidden sm:block">Share</span>
+        </button>
         <button
           onClick={() => { copyHtml(page, theme); toast.success('HTML copied!'); }}
           title="Copy HTML"
