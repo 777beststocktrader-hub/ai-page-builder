@@ -14,12 +14,13 @@ export default function IE({ value, fieldKey, onUpdate, as: Tag = 'span', classN
   const ref = useRef<HTMLElement>(null);
   const isEditing = useRef(false);
 
-  // Sync store value → DOM only when not actively editing
+  // Sync store value → DOM. Re-runs when onUpdate changes (block selected/deselected)
+  // so the textContent is restored after React strips children on contentEditable mount.
   useLayoutEffect(() => {
-    if (ref.current && !isEditing.current && ref.current.textContent !== value) {
-      ref.current.textContent = value;
+    if (ref.current && !isEditing.current && ref.current.textContent !== (value || '')) {
+      ref.current.textContent = value || '';
     }
-  }, [value]);
+  }, [value, onUpdate]);
 
   const C = Tag as any;
 
@@ -34,6 +35,7 @@ export default function IE({ value, fieldKey, onUpdate, as: Tag = 'span', classN
       suppressContentEditableWarning
       className={className}
       style={{
+        background: 'transparent',
         ...style,
         outline: 'none',
         cursor: 'text',
