@@ -1621,6 +1621,107 @@ function handleContact(e){
   </div>
 </section>`,
   },
+  // ── Countdown Timer ──────────────────────────────────────────────────────
+  {
+    type: 'countdown',
+    label: 'Countdown Timer',
+    emoji: '⏱️',
+    category: 'CTA',
+    fields: [
+      { key: 'headline', label: 'Headline', type: 'text', placeholder: 'Offer ends soon!' },
+      { key: 'subtext', label: 'Subtext', type: 'text', placeholder: 'Don\'t miss out on this limited time deal' },
+      { key: 'targetDate', label: 'Target Date (YYYY-MM-DD)', type: 'text', placeholder: '2025-12-31' },
+      { key: 'btnText', label: 'Button Text', type: 'text', placeholder: 'Claim Your Discount' },
+      { key: 'bgColor', label: 'Background Color', type: 'color' },
+      { key: 'expiredText', label: 'Expired Message', type: 'text', placeholder: 'Offer has ended' },
+    ],
+    defaultData: {
+      headline: 'Limited Time Offer — Ends Soon!',
+      subtext: 'Lock in the lowest price before this deal expires.',
+      targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      btnText: 'Claim Your Discount Now',
+      bgColor: '#0f172a',
+      expiredText: 'This offer has ended.',
+    },
+    renderCanvas: (data, onUpdate) => {
+      const target = new Date(data.targetDate + 'T23:59:59');
+      const diff = Math.max(0, target.getTime() - Date.now());
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      const expired = diff <= 0;
+      return (
+        <section style={{ background: data.bgColor || '#0f172a', padding: '80px 32px', textAlign: 'center' }}>
+          <div style={{ maxWidth: 640, margin: '0 auto' }}>
+            <IE as="h2" value={data.headline} fieldKey="headline" onUpdate={onUpdate}
+              className="block text-4xl font-bold text-white mb-4" />
+            <IE as="p" value={data.subtext} fieldKey="subtext" onUpdate={onUpdate}
+              className="block text-lg text-white/70 mb-10" />
+            {expired ? (
+              <p style={{ color: '#f87171', fontSize: '1.25rem', fontWeight: 600 }}>{data.expiredText}</p>
+            ) : (
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 40 }}>
+                {[{ v: days, l: 'Days' }, { v: hours, l: 'Hours' }, { v: mins, l: 'Minutes' }, { v: secs, l: 'Seconds' }].map(({ v, l }) => (
+                  <div key={l} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: '20px 24px', minWidth: 80 }}>
+                    <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff', lineHeight: 1 }}>{String(v).padStart(2, '0')}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{l}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <a href="#" style={{ display: 'inline-block', background: '#4f46e5', color: '#fff', padding: '16px 40px', borderRadius: 12, fontWeight: 700, fontSize: '1.0625rem' }}>
+              {data.btnText}
+            </a>
+          </div>
+        </section>
+      );
+    },
+    exportHtml: (data) => {
+      const targetIso = data.targetDate + 'T23:59:59';
+      return `
+<section style="background:${data.bgColor || '#0f172a'};padding:80px 32px;text-align:center;">
+  <div style="max-width:640px;margin:0 auto;">
+    <h2 style="font-size:2.5rem;font-weight:800;color:#fff;margin-bottom:16px;">${data.headline}</h2>
+    <p style="font-size:1.125rem;color:rgba(255,255,255,0.7);margin-bottom:48px;">${data.subtext}</p>
+    <div id="countdown-timer" style="display:flex;gap:16px;justify-content:center;margin-bottom:48px;">
+      <div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px;min-width:80px;">
+        <div id="cd-days" style="font-size:2.5rem;font-weight:800;color:#fff;line-height:1;" data-counter>00</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,0.5);margin-top:6px;text-transform:uppercase;letter-spacing:.1em;">Days</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px;min-width:80px;">
+        <div id="cd-hours" style="font-size:2.5rem;font-weight:800;color:#fff;line-height:1;">00</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,0.5);margin-top:6px;text-transform:uppercase;letter-spacing:.1em;">Hours</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px;min-width:80px;">
+        <div id="cd-mins" style="font-size:2.5rem;font-weight:800;color:#fff;line-height:1;">00</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,0.5);margin-top:6px;text-transform:uppercase;letter-spacing:.1em;">Minutes</div>
+      </div>
+      <div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px;min-width:80px;">
+        <div id="cd-secs" style="font-size:2.5rem;font-weight:800;color:#fff;line-height:1;">00</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,0.5);margin-top:6px;text-transform:uppercase;letter-spacing:.1em;">Seconds</div>
+      </div>
+    </div>
+    <p id="cd-expired" style="display:none;color:#f87171;font-size:1.25rem;font-weight:600;margin-bottom:48px;">${data.expiredText || 'This offer has ended.'}</p>
+    <a href="#" style="display:inline-block;background:#4f46e5;color:#fff;padding:16px 40px;border-radius:12px;font-weight:700;font-size:1.0625rem;text-decoration:none;">${data.btnText}</a>
+  </div>
+  <script>
+  (function(){
+    var t=new Date("${targetIso}").getTime();
+    function tick(){
+      var n=Date.now(),d=t-n;
+      if(d<=0){document.getElementById('countdown-timer').style.display='none';document.getElementById('cd-expired').style.display='block';return;}
+      document.getElementById('cd-days').textContent=String(Math.floor(d/86400000)).padStart(2,'0');
+      document.getElementById('cd-hours').textContent=String(Math.floor(d%86400000/3600000)).padStart(2,'0');
+      document.getElementById('cd-mins').textContent=String(Math.floor(d%3600000/60000)).padStart(2,'0');
+      document.getElementById('cd-secs').textContent=String(Math.floor(d%60000/1000)).padStart(2,'0');
+    }
+    tick();setInterval(tick,1000);
+  })();
+  </script>
+</section>`;
+    },
+  },
 ];
 
 export default BLOCK_DEFS;

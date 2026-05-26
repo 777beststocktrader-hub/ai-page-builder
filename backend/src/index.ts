@@ -214,7 +214,7 @@ Rules:
     }
 
     // Filter out any blocks with unknown types
-    const VALID_TYPES = new Set(['banner','navbar','hero','features','pricing','testimonials','cta','faq','text-content','stats','footer','video','logo-cloud','newsletter','richtext','contact','steps','comparison','team']);
+    const VALID_TYPES = new Set(['banner','navbar','hero','features','pricing','testimonials','cta','faq','text-content','stats','footer','video','logo-cloud','newsletter','richtext','contact','steps','comparison','team','countdown']);
     data.blocks = data.blocks.filter((b: any) => VALID_TYPES.has(b.type));
 
     res.json({ success: true, ...data });

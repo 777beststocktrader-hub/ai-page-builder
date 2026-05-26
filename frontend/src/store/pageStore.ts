@@ -35,6 +35,8 @@ interface PageStore {
   setPreview: (val: boolean) => void;
   setPreviewMode: (mode: 'desktop' | 'tablet' | 'mobile') => void;
   loadPage: (page: Page) => void;
+  loadProject: (page: Page, pageGoal: string, theme: Theme) => void;
+  newProject: () => void;
   markSaved: () => void;
 }
 
@@ -186,6 +188,14 @@ export const usePageStore = create<PageStore>((set, get) => ({
   setPreviewMode: (mode) => set({ previewMode: mode }),
   loadPage: (page) =>
     set({ page, selectedBlockId: null, history: { past: [], present: page.blocks, future: [] } }),
+
+  loadProject: (page, pageGoal, theme) =>
+    set({ page, pageGoal, theme, selectedBlockId: null, isPreview: false, history: { past: [], present: page.blocks, future: [] } }),
+
+  newProject: () => {
+    const page: Page = { id: uuid(), title: 'New Page', blocks: [] };
+    set({ page, pageGoal: '', theme: { primaryColor: '#4f46e5' }, selectedBlockId: null, isPreview: false, history: { past: [], present: [], future: [] } });
+  },
 
   markSaved: () => set({ savedAt: Date.now() }),
 }));

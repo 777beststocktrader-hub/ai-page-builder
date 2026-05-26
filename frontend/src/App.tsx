@@ -6,6 +6,7 @@ import Canvas from './components/Canvas';
 import PropertiesPanel from './components/PropertiesPanel';
 import { usePageStore } from './store/pageStore';
 import { exportPageToHtml } from './lib/htmlExport';
+import { saveProject } from './lib/projects';
 
 const STORAGE_KEY = 'ai-pb-v1';
 const SAVE_DEBOUNCE_MS = 800;
@@ -47,6 +48,7 @@ export default function App() {
             pageGoal: state.pageGoal,
             theme: state.theme,
           }));
+          saveProject(state.page, state.pageGoal, state.theme);
           usePageStore.getState().markSaved();
         } catch {}
       }, SAVE_DEBOUNCE_MS);

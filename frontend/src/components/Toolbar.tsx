@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles } from 'lucide-react';
+import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen } from 'lucide-react';
+import ProjectsModal from './ProjectsModal';
 import { usePageStore } from '../store/pageStore';
 import { downloadHtml, copyHtml, previewInNewTab, downloadZip } from '../lib/htmlExport';
 import { publishToShopify, getShopFromUrl, isShopifyEmbedded } from '../lib/shopifyPublish';
@@ -14,6 +15,7 @@ export default function Toolbar() {
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [generatingTitle, setGeneratingTitle] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -47,6 +49,7 @@ export default function Toolbar() {
 
   return (
     <>
+    {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
     {showSettings && (
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
@@ -111,6 +114,13 @@ export default function Toolbar() {
             </span>
           )}
         </div>
+        <button
+          onClick={() => setShowProjects(true)}
+          title="My Pages"
+          className="p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all"
+        >
+          <FolderOpen size={15} />
+        </button>
         <div className="w-px h-5 bg-slate-700" />
         {editingTitle ? (
           <input
