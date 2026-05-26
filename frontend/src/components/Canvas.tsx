@@ -22,7 +22,13 @@ import { Block } from '../types';
 import BLOCK_DEFS from '../blocks/blockDefs';
 import toast from 'react-hot-toast';
 
-function SortableBlock({ block, selected }: { block: Block; selected: boolean }) {
+function getSmartSuggestions(existingTypes: string[]): string[] {
+  const priority = ['hero', 'features', 'testimonials', 'pricing', 'cta', 'steps', 'faq', 'stats', 'newsletter', 'comparison', 'gallery', 'video', 'countdown'];
+  const missing = priority.filter((t) => !existingTypes.includes(t));
+  return missing.slice(0, 6);
+}
+
+function SortableBlock({ block, selected, existingTypes }: { block: Block; selected: boolean; existingTypes: string[] }) {
   const { selectBlock, deleteBlock, duplicateBlock, addBlock, updateBlock } = usePageStore();
   const def = getBlockDef(block.type);
 
@@ -122,12 +128,13 @@ function SortableBlock({ block, selected }: { block: Block; selected: boolean })
         {def.renderCanvas(block.data, onUpdate)}
       </div>
 
-      {/* Add Section Button between blocks */}
+      {/* Smart Add Button between blocks */}
       <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-50 transition-opacity opacity-0 group-hover:opacity-100">
         <div className="relative">
           <div className="w-px h-4 bg-indigo-500 mx-auto" />
-          <div className="flex gap-1 bg-slate-900 border border-slate-600 rounded-lg p-1 shadow-lg">
-            {['hero', 'features', 'cta', 'pricing', 'steps', 'testimonials'].map((type) => {
+          <div className="flex gap-1 bg-slate-900 border border-slate-600 rounded-lg p-1 shadow-lg items-center">
+            <span className="text-slate-600 text-xs px-1">Add:</span>
+            {getSmartSuggestions(existingTypes).map((type) => {
               const d = BLOCK_DEFS.find((b) => b.type === type);
               if (!d) return null;
               return (
@@ -150,6 +157,13 @@ function SortableBlock({ block, selected }: { block: Block; selected: boolean })
       </div>
     </div>
   );
+}
+
+function estimateReadingTime(blocks: import('../types').Block[]): string {
+  const text = blocks.map((b) => JSON.stringify(b.data)).join(' ');
+  const words = text.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(1, Math.round(words / 200));
+  return `~${minutes} min read`;
 }
 
 export default function Canvas() {
@@ -208,6 +222,13 @@ export default function Canvas() {
       style={{ '--brand': theme.primaryColor } as React.CSSProperties}
       onClick={() => selectBlock(null)}
     >
+      {page.blocks.length > 0 && (
+        <div className="sticky top-0 z-30 flex items-center justify-end gap-3 px-4 py-1.5 bg-slate-100/80 backdrop-blur-sm border-b border-slate-200 text-xs text-slate-400 pointer-events-none">
+          <span>{page.blocks.length} section{page.blocks.length !== 1 ? 's' : ''}</span>
+          <span>·</span>
+          <span>{estimateReadingTime(page.blocks)}</span>
+        </div>
+      )}
       <div className="min-h-full bg-white max-w-5xl mx-auto shadow-xl my-4">
         <DndContext
           sensors={sensors}
@@ -221,6 +242,7 @@ export default function Canvas() {
                   key={block.id}
                   block={block}
                   selected={selectedBlockId === block.id}
+                  existingTypes={page.blocks.map((b) => b.type)}
                 />
               ))}
             </div>

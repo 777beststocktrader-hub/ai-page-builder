@@ -227,16 +227,26 @@ const BLOCK_DEFS: BlockDef[] = [
       const links = typeof data.links === 'string' ? data.links.split(',') : data.links || [];
       const isBlur = data.sticky === 'blur';
       const isTransparent = data.sticky === 'transparent';
+      const navBg = isTransparent ? 'transparent' : isBlur ? 'rgba(15,23,42,0.85)' : data.bgColor;
+      const navBgMobile = isTransparent ? (data.bgColor || '#0f172a') : navBg;
       return `
-<nav style="padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;${isTransparent ? 'background:transparent;' : isBlur ? 'background:rgba(15,23,42,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.08);' : `background:${data.bgColor};`}">
-  <div style="display:flex;align-items:center;gap:32px;">
-    <span style="color:#fff;font-weight:700;font-size:1.125rem;">${data.brand}</span>
-    <div style="display:flex;gap:24px;">
-      ${links.map((l: string) => `<a href="#" style="color:rgba(203,213,225,1);font-size:14px;text-decoration:none;">${l.trim()}</a>`).join('')}
-    </div>
+<nav id="navbar" style="padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;${isBlur ? 'backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.08);' : ''}background:${navBg};">
+  <span style="color:#fff;font-weight:700;font-size:1.125rem;">${data.brand}</span>
+  <div id="nav-links" style="display:flex;align-items:center;gap:24px;">
+    ${links.map((l: string) => `<a href="#" style="color:rgba(203,213,225,1);font-size:14px;text-decoration:none;">${l.trim()}</a>`).join('')}
+    <a href="#" style="padding:8px 16px;background:#4f46e5;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">${data.ctaText}</a>
   </div>
-  <a href="#" style="padding:8px 16px;background:#4f46e5;color:#fff;border-radius:8px;font-size:14px;font-weight:600;">${data.ctaText}</a>
-</nav>`;
+  <button id="nav-toggle" onclick="(function(){var m=document.getElementById('nav-mobile');m.style.display=m.style.display==='flex'?'none':'flex';})()" style="display:none;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:4px;">
+    <span style="display:block;width:22px;height:2px;background:#fff;border-radius:1px;"></span>
+    <span style="display:block;width:22px;height:2px;background:#fff;border-radius:1px;"></span>
+    <span style="display:block;width:22px;height:2px;background:#fff;border-radius:1px;"></span>
+  </button>
+</nav>
+<div id="nav-mobile" style="display:none;flex-direction:column;gap:0;background:${navBgMobile};padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.1);position:sticky;top:57px;z-index:99;">
+  ${links.map((l: string) => `<a href="#" style="display:block;padding:12px 32px;color:rgba(203,213,225,1);font-size:14px;text-decoration:none;">${l.trim()}</a>`).join('')}
+  <div style="padding:12px 32px;"><a href="#" style="display:inline-block;padding:10px 20px;background:#4f46e5;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">${data.ctaText}</a></div>
+</div>
+<style>@media(max-width:768px){#nav-links{display:none!important;}#nav-toggle{display:flex!important;}}</style>`;
     },
   },
 

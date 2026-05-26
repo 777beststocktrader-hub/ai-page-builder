@@ -531,6 +531,7 @@ function EmptyState() {
           { keys: 'Del', label: 'Delete selected block' },
           { keys: 'Esc', label: 'Deselect' },
           { keys: '↑ / ↓', label: 'Select prev / next block' },
+          { keys: 'Ctrl+Shift+P', label: 'Toggle preview mode' },
         ].map(({ keys, label }) => (
           <div key={keys} className="flex items-center justify-between py-1">
             <span className="text-xs text-slate-500">{label}</span>

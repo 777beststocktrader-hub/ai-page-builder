@@ -90,6 +90,11 @@ export default function App() {
           duplicateBlock(id);
         }
       }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        const s = usePageStore.getState();
+        s.setPreview(!s.isPreview);
+      }
       if (!inInput && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         const state = usePageStore.getState();
         const blocks = state.page.blocks;
