@@ -8,7 +8,54 @@ import { usePageStore } from './store/pageStore';
 import { exportPageToHtml } from './lib/htmlExport';
 import { saveProject } from './lib/projects';
 import { getBlockDef } from './blocks/blockDefs';
-import { Search, X } from 'lucide-react';
+import { Search, X, Keyboard } from 'lucide-react';
+
+const SHORTCUTS = [
+  { keys: ['Ctrl', 'Z'], description: 'Undo' },
+  { keys: ['Ctrl', 'Y'], description: 'Redo' },
+  { keys: ['Ctrl', 'D'], description: 'Duplicate selected block' },
+  { keys: ['Ctrl', 'F'], description: 'Search blocks' },
+  { keys: ['Ctrl', 'Shift', 'P'], description: 'Toggle preview' },
+  { keys: ['Del'], description: 'Delete selected block' },
+  { keys: ['Esc'], description: 'Deselect block' },
+  { keys: ['↑ / ↓'], description: 'Navigate between blocks' },
+  { keys: ['Ctrl', 'Enter'], description: 'Submit AI prompt' },
+];
+
+function ShortcutsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
+          <div className="flex items-center gap-2">
+            <Keyboard size={16} className="text-indigo-400" />
+            <h2 className="text-white font-semibold text-base">Keyboard Shortcuts</h2>
+          </div>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded"><X size={14} /></button>
+        </div>
+        <div className="p-4 space-y-1">
+          {SHORTCUTS.map((s) => (
+            <div key={s.description} className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-slate-300">{s.description}</span>
+              <div className="flex items-center gap-1">
+                {s.keys.map((k, i) => (
+                  <React.Fragment key={k}>
+                    {i > 0 && <span className="text-slate-600 text-xs">+</span>}
+                    <kbd className="px-2 py-0.5 bg-slate-700 border border-slate-600 rounded text-xs text-slate-300 font-mono">{k}</kbd>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="px-5 pb-4">
+          <p className="text-xs text-slate-500 text-center">Press <kbd className="px-1.5 py-0.5 bg-slate-700 border border-slate-600 rounded text-xs text-slate-300 font-mono">?</kbd> to open this panel</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const STORAGE_KEY = 'ai-pb-v1';
 const SAVE_DEBOUNCE_MS = 800;
@@ -102,6 +149,7 @@ export default function App() {
   const { isPreview, selectedBlockId, deleteBlock, selectBlock, duplicateBlock } = usePageStore();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Auto-save to localStorage with debounce
   useEffect(() => {
@@ -165,6 +213,9 @@ export default function App() {
         e.preventDefault();
         setShowSearch(true);
       }
+      if (e.key === '?' && !inInput) {
+        setShowShortcuts(true);
+      }
       if (!inInput && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         const state = usePageStore.getState();
         const blocks = state.page.blocks;
@@ -185,6 +236,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-slate-900 overflow-hidden">
       {showSearch && <BlockSearchOverlay onClose={() => setShowSearch(false)} />}
+      {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       <Toaster
         position="bottom-center"
         toastOptions={{
