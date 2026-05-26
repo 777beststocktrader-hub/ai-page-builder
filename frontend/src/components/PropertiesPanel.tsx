@@ -1,13 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles } from 'lucide-react';
-import { generateSeoDescription } from '../lib/api';
+import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Maximize2 } from 'lucide-react';
+import { generateSeoDescription, analyzePageConversions } from '../lib/api';
 
 const FONT_OPTIONS = [
-  { value: 'Inter', label: 'Inter' },
-  { value: 'Poppins', label: 'Poppins' },
-  { value: 'Space Grotesk', label: 'Space Grotesk' },
-  { value: 'Outfit', label: 'Outfit' },
-  { value: 'Plus Jakarta Sans', label: 'Plus Jakarta Sans' },
+  { value: 'Inter', label: 'Inter — Clean & Modern' },
+  { value: 'Poppins', label: 'Poppins — Friendly & Round' },
+  { value: 'Space Grotesk', label: 'Space Grotesk — Tech Forward' },
+  { value: 'Outfit', label: 'Outfit — Minimal & Bold' },
+  { value: 'Plus Jakarta Sans', label: 'Plus Jakarta Sans — Professional' },
+  { value: 'Nunito', label: 'Nunito — Soft & Approachable' },
+  { value: 'DM Sans', label: 'DM Sans — Editorial' },
+  { value: 'Raleway', label: 'Raleway — Elegant & Stylish' },
+  { value: 'Sora', label: 'Sora — Modern & Geometric' },
+  { value: 'Bricolage Grotesque', label: 'Bricolage Grotesque — Bold & Expressive' },
 ];
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
@@ -204,6 +209,8 @@ function FieldEditor({
 function UrlFieldEditor({ value, onChange, placeholder }: { value: any; onChange: (v: any) => void; placeholder?: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [imgSearch, setImgSearch] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -224,6 +231,8 @@ function UrlFieldEditor({ value, onChange, placeholder }: { value: any; onChange
     }
   };
 
+  const UNSPLASH_KEYWORDS = ['business', 'technology', 'team', 'nature', 'office', 'food', 'fitness', 'travel', 'abstract', 'city'];
+
   return (
     <div className="space-y-1.5">
       <div className="flex gap-1.5">
@@ -237,13 +246,66 @@ function UrlFieldEditor({ value, onChange, placeholder }: { value: any; onChange
         <button
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          title="Upload image from your device"
-          className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded border border-slate-600 transition-all disabled:opacity-50 flex-shrink-0 flex items-center gap-1"
+          title="Upload from device"
+          className="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded border border-slate-600 transition-all disabled:opacity-50 flex-shrink-0 flex items-center"
         >
           {uploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
         </button>
+        <button
+          onClick={() => setShowSearch(!showSearch)}
+          title="Search free photos"
+          className={`px-2 py-1.5 rounded border transition-all flex-shrink-0 text-xs ${showSearch ? 'bg-indigo-700 text-white border-indigo-600' : 'bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white border-slate-600'}`}
+        >
+          🔍
+        </button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
       </div>
+
+      {showSearch && (
+        <div className="space-y-1.5">
+          <div className="flex gap-1">
+            <input
+              type="text"
+              value={imgSearch}
+              onChange={(e) => setImgSearch(e.target.value)}
+              placeholder="Search photos (e.g. team, office)…"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && imgSearch.trim()) {
+                  onChange(`https://source.unsplash.com/800x600/?${encodeURIComponent(imgSearch.trim())}&${Date.now()}`);
+                  setShowSearch(false);
+                }
+              }}
+              className="flex-1 bg-slate-900 text-slate-200 text-xs px-2 py-1.5 rounded border border-slate-700 focus:border-indigo-500 focus:outline-none placeholder-slate-600"
+            />
+            <button
+              onClick={() => {
+                if (imgSearch.trim()) {
+                  onChange(`https://source.unsplash.com/800x600/?${encodeURIComponent(imgSearch.trim())}&${Date.now()}`);
+                  setShowSearch(false);
+                }
+              }}
+              className="px-2 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition-all"
+            >
+              Use
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {UNSPLASH_KEYWORDS.map((kw) => (
+              <button
+                key={kw}
+                onClick={() => {
+                  onChange(`https://source.unsplash.com/800x600/?${kw}&${Date.now()}`);
+                  setShowSearch(false);
+                }}
+                className="text-xs px-1.5 py-0.5 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded border border-slate-700 transition-all capitalize"
+              >
+                {kw}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {value && (
         <div className="rounded overflow-hidden border border-slate-700">
           <img src={value} alt="" className="w-full h-16 object-cover" onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
@@ -256,6 +318,8 @@ function UrlFieldEditor({ value, onChange, placeholder }: { value: any; onChange
 function EmptyState() {
   const { theme, setTheme, page, setPageDescription, pageGoal } = usePageStore();
   const [genSeo, setGenSeo] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<{ score: number; tips: { issue: string; fix: string; priority: string }[]; missing: string[] } | null>(null);
   return (
     <div className="flex flex-col h-full overflow-y-auto scrollbar-thin">
       <div className="flex flex-col items-center justify-center p-6 text-center">
@@ -320,6 +384,26 @@ function EmptyState() {
         <p className="text-xs text-slate-600 mt-1.5">Applied in exported HTML</p>
       </div>
 
+      {/* Spacing */}
+      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <Maximize2 size={11} className="text-indigo-400" />
+          Section Spacing
+        </p>
+        <div className="flex gap-1">
+          {(['compact', 'normal', 'spacious'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setTheme({ ...theme, spacing: s })}
+              className={`flex-1 py-1.5 text-xs rounded transition-all capitalize ${(theme.spacing || 'normal') === s ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'}`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-slate-600 mt-1.5">Controls padding between sections in export</p>
+      </div>
+
       {/* SEO Settings */}
       <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -358,6 +442,58 @@ function EmptyState() {
           />
           <p className="text-xs text-slate-600 mt-1">{(page.description || '').length}/160 chars</p>
         </div>
+      </div>
+
+      {/* Conversion Rate Analysis */}
+      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <TrendingUp size={11} className="text-green-400" />
+            CRO Analysis
+          </p>
+          <button
+            onClick={async () => {
+              if (page.blocks.length === 0) return;
+              setAnalyzing(true);
+              try {
+                const result = await analyzePageConversions(
+                  pageGoal || page.title,
+                  page.blocks.map((b) => b.type)
+                );
+                setAnalysis(result);
+              } catch {}
+              setAnalyzing(false);
+            }}
+            disabled={analyzing || page.blocks.length === 0}
+            className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-all"
+          >
+            {analyzing ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+            {analyzing ? 'Analyzing…' : 'Analyze'}
+          </button>
+        </div>
+        {analysis ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all" style={{ width: `${analysis.score}%` }} />
+              </div>
+              <span className={`text-xs font-bold ${analysis.score >= 75 ? 'text-green-400' : analysis.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{analysis.score}/100</span>
+            </div>
+            {analysis.tips.map((tip, i) => (
+              <div key={i} className={`p-2 rounded-lg text-xs border ${tip.priority === 'high' ? 'bg-red-950/30 border-red-800/40' : tip.priority === 'medium' ? 'bg-yellow-950/30 border-yellow-800/40' : 'bg-slate-800/50 border-slate-700'}`}>
+                <p className={`font-semibold mb-0.5 flex items-center gap-1 ${tip.priority === 'high' ? 'text-red-400' : tip.priority === 'medium' ? 'text-yellow-400' : 'text-slate-400'}`}>
+                  {tip.priority === 'high' ? <AlertTriangle size={9} /> : <CheckCircle size={9} />} {tip.issue}
+                </p>
+                <p className="text-slate-400">{tip.fix}</p>
+              </div>
+            ))}
+            {analysis.missing.length > 0 && (
+              <p className="text-xs text-slate-500">Missing: {analysis.missing.join(', ')}</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-600">{page.blocks.length === 0 ? 'Add sections first' : 'Click Analyze to get conversion tips'}</p>
+        )}
       </div>
 
       {/* Shortcuts */}

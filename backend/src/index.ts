@@ -266,6 +266,35 @@ app.post('/api/contact', (req, res) => {
   }
 });
 
+// ── AI Conversion Rate Analysis ───────────────────────────────────────────
+app.post('/api/ai/analyze', async (req, res) => {
+  const { pageGoal, blockTypes } = req.body;
+  try {
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      system: 'You are a conversion rate optimization (CRO) expert. Respond with valid JSON only. No markdown.',
+      messages: [{
+        role: 'user',
+        content: `Analyze this landing page and give 4 specific actionable tips to improve conversion rate.
+Page goal: "${pageGoal || 'Unknown'}"
+Current sections: ${(blockTypes || []).join(', ')}
+
+Respond with JSON:
+{"score":75,"tips":[{"issue":"Short title","fix":"Make it benefit-focused","priority":"high"},...],"missing":["social proof","FAQ"]}
+
+Priority is "high", "medium", or "low". Tips must be specific to THIS page, not generic advice.`,
+      }],
+    });
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '{}';
+    const match = raw.match(/\{[\s\S]*\}/);
+    const data = match ? JSON.parse(match[0]) : { score: 70, tips: [], missing: [] };
+    res.json({ success: true, ...data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── AI Page Title Generator ───────────────────────────────────────────────
 app.post('/api/ai/title', async (req, res) => {
   const { goal } = req.body;

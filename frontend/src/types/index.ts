@@ -39,6 +39,7 @@ export interface BlockDef {
 export interface Theme {
   primaryColor: string;
   font?: string;
+  spacing?: 'compact' | 'normal' | 'spacious';
 }
 
 export type Tone = 'professional' | 'casual' | 'marketing' | 'playful';

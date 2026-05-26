@@ -23,6 +23,15 @@ export async function generateFullPage(
   return { tagline: data.tagline || '', blocks: data.blocks || [] };
 }
 
+export async function analyzePageConversions(
+  pageGoal: string,
+  blockTypes: string[]
+): Promise<{ score: number; tips: { issue: string; fix: string; priority: string }[]; missing: string[] }> {
+  const { data } = await api.post('/ai/analyze', { pageGoal, blockTypes });
+  if (!data.success) throw new Error(data.error || 'Analysis failed');
+  return { score: data.score || 70, tips: data.tips || [], missing: data.missing || [] };
+}
+
 export async function generatePageTitle(goal: string): Promise<string> {
   const { data } = await api.post('/ai/title', { goal });
   if (!data.success) throw new Error(data.error || 'Title generation failed');

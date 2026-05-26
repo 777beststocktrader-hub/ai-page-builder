@@ -8,6 +8,11 @@ const FONT_IMPORTS: Record<string, string> = {
   'Space Grotesk': "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap",
   Outfit: "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap",
   'Plus Jakarta Sans': "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+  Nunito: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap",
+  'DM Sans': "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap",
+  Raleway: "https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800&display=swap",
+  Sora: "https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap",
+  'Bricolage Grotesque': "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap",
 };
 
 export function exportPageToHtml(page: Page, theme?: Theme): string {
@@ -22,6 +27,12 @@ export function exportPageToHtml(page: Page, theme?: Theme): string {
   const fontName = theme?.font || 'Inter';
   const fontUrl = FONT_IMPORTS[fontName] || FONT_IMPORTS['Inter'];
   const fontStack = `'${fontName}', system-ui, -apple-system, sans-serif`;
+
+  const spacingScale = theme?.spacing === 'compact' ? 0.7 : theme?.spacing === 'spacious' ? 1.35 : 1;
+  const spacingCss = spacingScale !== 1
+    ? `section, header, footer, nav { --spacing-scale: ${spacingScale}; }
+    section[style*="padding:80px"], section[style*="padding:96px"], section[style*="padding:112px"] { padding-top: calc(var(--val, 80px) * ${spacingScale}) !important; padding-bottom: calc(var(--val, 80px) * ${spacingScale}) !important; }`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -59,6 +70,7 @@ export function exportPageToHtml(page: Page, theme?: Theme): string {
     .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.65s cubic-bezier(.16,1,.3,1), transform 0.65s cubic-bezier(.16,1,.3,1); }
     .reveal.visible { opacity: 1; transform: translateY(0); }
     details summary::-webkit-details-marker { display: none; }
+    ${spacingCss}
     ${page.customCss ? page.customCss : ''}
   </style>
   ${page.trackingCode ? page.trackingCode : ''}
