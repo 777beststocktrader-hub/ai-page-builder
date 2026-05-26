@@ -23,6 +23,7 @@ interface PageStore {
   setPageSettings: (settings: Partial<Pick<Page, 'faviconUrl' | 'ogImageUrl' | 'trackingCode' | 'customCss'>>) => void;
   setPageGoal: (goal: string) => void;
   setTheme: (theme: Theme) => void;
+  applyBrandColor: (color: string) => void;
   addBlock: (type: string, data: Record<string, any>, afterId?: string) => void;
   updateBlock: (id: string, data: Record<string, any>) => void;
   deleteBlock: (id: string) => void;
@@ -80,6 +81,21 @@ export const usePageStore = create<PageStore>((set, get) => ({
 
   setPageGoal: (goal) => set({ pageGoal: goal }),
   setTheme: (theme) => set({ theme }),
+
+  applyBrandColor: (color) =>
+    set((s) => {
+      const raw = JSON.stringify(s.page.blocks);
+      // Replace all instances of the default indigo accent #4f46e5
+      const updated = raw.replace(/#4f46e5/gi, color);
+      try {
+        const blocks = JSON.parse(updated) as Block[];
+        return {
+          page: { ...s.page, blocks },
+          theme: { ...s.theme, primaryColor: color },
+          history: { past: [...s.history.past, s.page.blocks], present: blocks, future: [] },
+        };
+      } catch { return {}; }
+    }),
 
   addBlock: (type, data, afterId) => {
     const newBlock: Block = { id: uuid(), type, data };

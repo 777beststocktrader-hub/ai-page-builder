@@ -316,7 +316,7 @@ function UrlFieldEditor({ value, onChange, placeholder }: { value: any; onChange
 }
 
 function EmptyState() {
-  const { theme, setTheme, page, setPageDescription, pageGoal } = usePageStore();
+  const { theme, setTheme, page, setPageDescription, pageGoal, applyBrandColor } = usePageStore();
   const [genSeo, setGenSeo] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<{ score: number; tips: { issue: string; fix: string; priority: string }[]; missing: string[] } | null>(null);
@@ -328,41 +328,65 @@ function EmptyState() {
         <p className="text-slate-500 text-xs">Or add blocks from the left panel</p>
       </div>
 
-      {/* Brand Settings */}
+      {/* Theme Presets */}
       <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <Palette size={11} className="text-indigo-400" />
-          Brand Color
+          Theme Presets
         </p>
-        <div className="flex items-center gap-2 mb-2.5">
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          {[
+            { name: 'Indigo', color: '#4f46e5', font: 'Inter', accent: '#6366f1' },
+            { name: 'Ocean', color: '#0891b2', font: 'Plus Jakarta Sans', accent: '#22d3ee' },
+            { name: 'Forest', color: '#059669', font: 'Poppins', accent: '#34d399' },
+            { name: 'Ruby', color: '#dc2626', font: 'Space Grotesk', accent: '#f87171' },
+            { name: 'Violet', color: '#7c3aed', font: 'Raleway', accent: '#a78bfa' },
+            { name: 'Amber', color: '#d97706', font: 'Outfit', accent: '#fbbf24' },
+            { name: 'Rose', color: '#db2777', font: 'Nunito', accent: '#f472b6' },
+            { name: 'Slate', color: '#475569', font: 'DM Sans', accent: '#94a3b8' },
+            { name: 'Teal', color: '#0d9488', font: 'Sora', accent: '#2dd4bf' },
+          ].map((preset) => (
+            <button
+              key={preset.name}
+              onClick={() => setTheme({ ...theme, primaryColor: preset.color, font: preset.font })}
+              title={`${preset.name} — ${preset.font}`}
+              className={`relative flex flex-col items-center gap-1 p-2 rounded-lg border transition-all hover:scale-105 ${theme.primaryColor === preset.color ? 'border-white/40 bg-slate-700' : 'border-slate-700 hover:border-slate-500'}`}
+            >
+              <div className="flex gap-0.5">
+                <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: preset.color }} />
+                <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: preset.accent }} />
+              </div>
+              <span className="text-xs text-slate-400" style={{ fontSize: '9px' }}>{preset.name}</span>
+              {theme.primaryColor === preset.color && (
+                <div className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-white" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom color + apply */}
+        <div className="flex items-center gap-2">
           <input
             type="color"
             value={theme.primaryColor}
             onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
-            className="w-9 h-9 rounded-lg cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
+            className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent flex-shrink-0"
           />
-          <div className="flex-1">
-            <input
-              type="text"
-              value={theme.primaryColor}
-              onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
-              className="w-full bg-slate-900 text-slate-200 text-xs px-2 py-1.5 rounded border border-slate-700 focus:border-indigo-500 focus:outline-none font-mono"
-            />
-          </div>
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {[
-            '#4f46e5', '#0891b2', '#059669', '#dc2626',
-            '#7c3aed', '#db2777', '#d97706', '#0f172a',
-          ].map((color) => (
+          <input
+            type="text"
+            value={theme.primaryColor}
+            onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
+            className="flex-1 bg-slate-900 text-slate-200 text-xs px-2 py-1.5 rounded border border-slate-700 focus:border-indigo-500 focus:outline-none font-mono"
+          />
+          {page.blocks.length > 0 && (
             <button
-              key={color}
-              onClick={() => setTheme({ ...theme, primaryColor: color })}
-              title={color}
-              className={`w-6 h-6 rounded-full transition-all hover:scale-110 ${theme.primaryColor === color ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900' : ''}`}
-              style={{ backgroundColor: color }}
-            />
-          ))}
+              onClick={() => { applyBrandColor(theme.primaryColor); }}
+              title="Replace default indigo with this color across all blocks"
+              className="px-2 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded border border-indigo-600 transition-all whitespace-nowrap flex-shrink-0"
+            >
+              Apply all
+            </button>
+          )}
         </div>
       </div>
 

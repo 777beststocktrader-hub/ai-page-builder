@@ -93,6 +93,36 @@ const PAGE_TEMPLATES = [
       { type: 'footer', overrides: { brand: 'AppName' } },
     ],
   },
+  {
+    name: 'E-Commerce',
+    emoji: '🛒',
+    blocks: [
+      { type: 'banner', overrides: { text: '🎁 Free shipping on orders over $50 — Limited time offer!', linkText: 'Shop Now →', bgColor: '#059669' } },
+      { type: 'navbar', overrides: { brand: 'ShopName', links: 'Shop,Collections,About,Reviews', ctaText: 'View Cart' } },
+      { type: 'hero', overrides: { variant: 'split', eyebrow: '🔥 Best Seller', headline: 'Premium Quality, Prices You\'ll Love', subheadline: 'Discover handpicked products crafted for the modern lifestyle. Fast shipping, easy returns, guaranteed quality.', primaryBtn: 'Shop Best Sellers', secondaryBtn: 'View All Collections' } },
+      { type: 'logo-cloud', overrides: { title: 'As seen in' } },
+      { type: 'features', overrides: { title: 'Why Thousands Choose Us', features: [{ icon: '🚚', title: 'Free Fast Shipping', description: 'Free 2-day shipping on all orders over $50. Same-day dispatch before 2PM.' }, { icon: '↩️', title: '30-Day Returns', description: 'Not happy? Return it hassle-free within 30 days, no questions asked.' }, { icon: '✅', title: 'Quality Guarantee', description: 'Every product is inspected before shipping. If it\'s not perfect, we make it right.' }, { icon: '🔒', title: 'Secure Checkout', description: 'SSL encrypted, PCI compliant. Shop with confidence knowing you\'re protected.' }, { icon: '💬', title: '24/7 Support', description: 'Our team is available around the clock to help with any questions.' }, { icon: '🎁', title: 'Loyalty Rewards', description: 'Earn points on every purchase and unlock exclusive discounts.' }] } },
+      { type: 'stats', overrides: { title: 'Trusted by Customers Worldwide', stats: [{ value: '150K+', label: 'Happy Customers' }, { value: '4.9★', label: 'Average Rating' }, { value: '98%', label: 'Would Recommend' }, { value: '24h', label: 'Support Response' }] } },
+      { type: 'testimonials', overrides: { title: 'Real Reviews From Real Customers' } },
+      { type: 'faq', overrides: { items: [{ question: 'How long does shipping take?', answer: 'Standard orders arrive in 3-5 business days. With Express, get it in 1-2 days.' }, { question: 'What is your return policy?', answer: 'We offer free returns within 30 days. Just contact support and we\'ll handle everything.' }, { question: 'Is my payment information secure?', answer: 'Yes — we use industry-standard SSL encryption and never store your card details.' }, { question: 'Do you ship internationally?', answer: 'We ship to 50+ countries. International orders typically arrive in 7-14 business days.' }] } },
+      { type: 'newsletter', overrides: { headline: 'Get 15% Off Your First Order', subtext: 'Join our VIP list for exclusive deals, new arrivals, and early access to sales.', btnText: 'Claim My 15% Off' } },
+      { type: 'footer', overrides: { brand: 'ShopName', tagline: 'Premium products, exceptional service.' } },
+    ],
+  },
+  {
+    name: 'Blog / Newsletter',
+    emoji: '✍️',
+    blocks: [
+      { type: 'navbar', overrides: { brand: 'The Digest', links: 'Articles,Topics,About,Archive', ctaText: 'Subscribe Free' } },
+      { type: 'hero', overrides: { variant: 'minimal', eyebrow: 'Weekly Newsletter', headline: 'Ideas Worth Reading, Every Sunday', subheadline: 'Join 25,000+ subscribers who get curated insights on technology, business, and design. 5 minutes. Always free.', primaryBtn: 'Subscribe — It\'s Free', secondaryBtn: 'Read Past Issues' } },
+      { type: 'stats', overrides: { title: '', stats: [{ value: '25K+', label: 'Subscribers' }, { value: '200+', label: 'Issues Published' }, { value: '72%', label: 'Open Rate' }, { value: '4.9/5', label: 'Reader Rating' }] } },
+      { type: 'features', overrides: { title: 'What You Get Every Sunday', features: [{ icon: '📰', title: 'Top Stories', description: 'The 5 most important stories of the week, curated and summarized for busy people.' }, { icon: '🔍', title: 'Deep Dives', description: 'One long-form analysis per week on the trend that matters most.' }, { icon: '🛠️', title: 'Tools & Resources', description: 'The best tools, templates, and frameworks discovered this week.' }, { icon: '💡', title: 'One Big Idea', description: 'A single counterintuitive idea to make you think differently.' }, { icon: '📊', title: 'Data Snapshot', description: 'Charts and stats that tell the story of what\'s happening in the world.' }, { icon: '🎙️', title: 'Creator Spotlight', description: 'An interview with a creator, founder, or expert building something interesting.' }] } },
+      { type: 'testimonials', overrides: { title: 'What Readers Are Saying' } },
+      { type: 'comparison', overrides: { title: 'Why Read The Digest?', col1: 'Doom-scrolling News', col2: 'The Digest', rows: [{ feature: 'Time to feel informed', col1: '45 min of anxiety', col2: '5 focused minutes' }, { feature: 'Signal vs noise', col1: 'Mostly noise', col2: 'Only signal' }, { feature: 'Actionable insights', col1: 'Rarely', col2: 'Every issue' }, { feature: 'Cost', col1: 'Free (+ your sanity)', col2: 'Free forever' }] } },
+      { type: 'newsletter', overrides: { headline: 'Join 25,000+ Readers This Sunday', subtext: 'Free forever. No spam. Unsubscribe with one click anytime.', btnText: 'Subscribe Now' } },
+      { type: 'footer', overrides: { brand: 'The Digest', tagline: 'Ideas worth reading, every Sunday.' } },
+    ],
+  },
 ];
 
 export default function BlockLibrary() {

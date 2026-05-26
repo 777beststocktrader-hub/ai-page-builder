@@ -1722,6 +1722,436 @@ function handleContact(e){
 </section>`;
     },
   },
+  // ── Image Gallery ────────────────────────────────────────────────────────
+  {
+    type: 'gallery',
+    label: 'Image Gallery',
+    emoji: '🖼️',
+    category: 'Media',
+    fields: [
+      { key: 'title', label: 'Section Title', type: 'text' },
+      { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+      { key: 'layout', label: 'Layout', type: 'select', options: [
+        { value: 'grid3', label: '3-Column Grid' },
+        { value: 'grid2', label: '2-Column Grid' },
+        { value: 'masonry', label: 'Masonry / Pinterest' },
+        { value: 'featured', label: 'Featured (1 large + grid)' },
+      ]},
+      {
+        key: 'images',
+        label: 'Images',
+        type: 'array',
+        arrayItemFields: [
+          { key: 'url', label: 'Image URL', type: 'url' },
+          { key: 'caption', label: 'Caption (optional)', type: 'text' },
+        ],
+      },
+      { key: 'bgColor', label: 'Background', type: 'color' },
+    ],
+    defaultData: {
+      title: 'Our Work',
+      subtitle: 'A selection of projects that showcase our craft and attention to detail.',
+      layout: 'grid3',
+      images: [
+        { url: 'https://source.unsplash.com/800x600/?office,workspace', caption: 'Modern workspace' },
+        { url: 'https://source.unsplash.com/800x600/?technology,laptop', caption: 'Tech innovation' },
+        { url: 'https://source.unsplash.com/800x600/?team,people', caption: 'Our team' },
+        { url: 'https://source.unsplash.com/800x600/?product,design', caption: 'Product showcase' },
+        { url: 'https://source.unsplash.com/800x600/?abstract,art', caption: 'Creative direction' },
+        { url: 'https://source.unsplash.com/800x600/?city,architecture', caption: 'Architecture' },
+      ],
+      bgColor: '#ffffff',
+    },
+    renderCanvas: (data, onUpdate) => {
+      const layout = data.layout || 'grid3';
+      const images: any[] = data.images || [];
+      return (
+        <section className="py-20 px-8" style={{ backgroundColor: data.bgColor }}>
+          <div className="max-w-5xl mx-auto">
+            {(data.title || data.subtitle) && (
+              <div className="text-center mb-12">
+                {data.title && (
+                  <IE as="h2" value={data.title} fieldKey="title" onUpdate={onUpdate}
+                    className="text-4xl font-bold text-gray-900 mb-4 block" />
+                )}
+                {data.subtitle && (
+                  <IE as="p" value={data.subtitle} fieldKey="subtitle" onUpdate={onUpdate}
+                    className="text-xl text-gray-500 max-w-2xl mx-auto block" />
+                )}
+              </div>
+            )}
+            {layout === 'featured' && images.length > 0 ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl overflow-hidden aspect-video">
+                  <img src={images[0].url} alt={images[0].caption || ''} className="w-full h-full object-cover" />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  {images.slice(1, 4).map((img: any, i: number) => (
+                    <div key={i} className="rounded-xl overflow-hidden aspect-square">
+                      <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : layout === 'masonry' ? (
+              <div style={{ columns: 3, gap: '16px' }}>
+                {images.map((img: any, i: number) => (
+                  <div key={i} style={{ breakInside: 'avoid', marginBottom: 16 }} className="rounded-xl overflow-hidden">
+                    <img src={img.url} alt={img.caption || ''} className="w-full block" />
+                    {img.caption && <p className="text-xs text-gray-500 px-2 py-1.5">{img.caption}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={`grid gap-4 ${layout === 'grid2' ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                {images.map((img: any, i: number) => (
+                  <div key={i} className="rounded-xl overflow-hidden group">
+                    <div className="relative aspect-square overflow-hidden">
+                      <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      {img.caption && (
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                          <p className="text-white text-xs font-medium">{img.caption}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      );
+    },
+    exportHtml: (data) => {
+      const layout = data.layout || 'grid3';
+      const images: any[] = data.images || [];
+      const cols = layout === 'grid2' ? 2 : 3;
+
+      const titleHtml = data.title || data.subtitle ? `
+    <div style="text-align:center;margin-bottom:48px;">
+      ${data.title ? `<h2 style="font-size:2.5rem;font-weight:700;color:#111827;margin-bottom:16px;">${data.title}</h2>` : ''}
+      ${data.subtitle ? `<p style="font-size:1.25rem;color:#6b7280;max-width:512px;margin:0 auto;">${data.subtitle}</p>` : ''}
+    </div>` : '';
+
+      if (layout === 'featured' && images.length > 0) {
+        return `
+<section style="padding:80px 32px;background:${data.bgColor || '#fff'};">
+  <div style="max-width:960px;margin:0 auto;">
+    ${titleHtml}
+    <div style="border-radius:16px;overflow:hidden;aspect-ratio:16/9;margin-bottom:16px;">
+      <img src="${images[0].url}" alt="${images[0].caption || ''}" style="width:100%;height:100%;object-fit:cover;display:block;" />
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+      ${images.slice(1, 4).map((img: any) => `
+      <div style="border-radius:12px;overflow:hidden;aspect-ratio:1/1;">
+        <img src="${img.url}" alt="${img.caption || ''}" style="width:100%;height:100%;object-fit:cover;display:block;" />
+      </div>`).join('')}
+    </div>
+  </div>
+</section>`;
+      }
+
+      if (layout === 'masonry') {
+        return `
+<section style="padding:80px 32px;background:${data.bgColor || '#fff'};">
+  <div style="max-width:960px;margin:0 auto;">
+    ${titleHtml}
+    <div style="columns:3;gap:16px;">
+      ${images.map((img: any) => `
+      <div style="break-inside:avoid;margin-bottom:16px;border-radius:12px;overflow:hidden;">
+        <img src="${img.url}" alt="${img.caption || ''}" style="width:100%;display:block;" />
+        ${img.caption ? `<p style="font-size:12px;color:#6b7280;padding:8px 12px;">${img.caption}</p>` : ''}
+      </div>`).join('')}
+    </div>
+  </div>
+</section>`;
+      }
+
+      return `
+<section style="padding:80px 32px;background:${data.bgColor || '#fff'};">
+  <div style="max-width:960px;margin:0 auto;">
+    ${titleHtml}
+    <div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:16px;">
+      ${images.map((img: any) => `
+      <div style="border-radius:12px;overflow:hidden;position:relative;aspect-ratio:1/1;">
+        <img src="${img.url}" alt="${img.caption || ''}" style="width:100%;height:100%;object-fit:cover;display:block;" />
+        ${img.caption ? `<div style="position:absolute;bottom:0;left:0;right:0;padding:12px;background:linear-gradient(to top,rgba(0,0,0,0.6),transparent);"><p style="color:#fff;font-size:12px;font-weight:500;margin:0;">${img.caption}</p></div>` : ''}
+      </div>`).join('')}
+    </div>
+  </div>
+</section>`;
+    },
+  },
+
+  // ── Timeline ─────────────────────────────────────────────────────────────
+  {
+    type: 'timeline',
+    label: 'Timeline',
+    emoji: '📅',
+    category: 'Content',
+    fields: [
+      { key: 'title', label: 'Section Title', type: 'text' },
+      { key: 'subtitle', label: 'Subtitle', type: 'textarea' },
+      {
+        key: 'items',
+        label: 'Timeline Items',
+        type: 'array',
+        arrayItemFields: [
+          { key: 'date', label: 'Date / Year', type: 'text' },
+          { key: 'title', label: 'Event Title', type: 'text' },
+          { key: 'description', label: 'Description', type: 'textarea' },
+          { key: 'icon', label: 'Icon (emoji)', type: 'text' },
+          { key: 'color', label: 'Dot Color', type: 'color' },
+        ],
+      },
+      { key: 'variant', label: 'Style', type: 'select', options: [
+        { value: 'center', label: 'Center Line (alternating)' },
+        { value: 'left', label: 'Left Line (all right)' },
+      ]},
+      { key: 'bgColor', label: 'Background', type: 'color' },
+    ],
+    defaultData: {
+      title: 'Our Journey',
+      subtitle: 'From a small idea to a product trusted by thousands.',
+      variant: 'center',
+      bgColor: '#ffffff',
+      items: [
+        { date: '2021', title: 'The Idea', description: 'Two founders frustrated by slow, bloated page builders decided to build something better.', icon: '💡', color: '#4f46e5' },
+        { date: '2022', title: 'First Launch', description: 'We shipped the MVP in 3 months. 500 users signed up in the first week.', icon: '🚀', color: '#0891b2' },
+        { date: '2023', title: 'AI Integration', description: 'Added Claude AI for content generation. Time-to-publish dropped from hours to minutes.', icon: '🤖', color: '#059669' },
+        { date: '2024', title: '10K Users', description: 'Reached 10,000 active users. Launched Shopify integration and ZIP export.', icon: '🎉', color: '#dc2626' },
+        { date: '2025', title: 'What\'s Next', description: 'We\'re just getting started. More AI, more integrations, and more ways to ship faster.', icon: '⭐', color: '#7c3aed' },
+      ],
+    },
+    renderCanvas: (data, onUpdate) => {
+      const variant = data.variant || 'center';
+      const items: any[] = data.items || [];
+
+      if (variant === 'left') {
+        return (
+          <section className="py-20 px-8" style={{ backgroundColor: data.bgColor }}>
+            <div className="max-w-3xl mx-auto">
+              <div className="text-center mb-16">
+                <IE as="h2" value={data.title} fieldKey="title" onUpdate={onUpdate}
+                  className="text-4xl font-bold text-gray-900 mb-4 block" />
+                <IE as="p" value={data.subtitle} fieldKey="subtitle" onUpdate={onUpdate}
+                  className="text-xl text-gray-500 block" />
+              </div>
+              <div className="relative">
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200" />
+                <div className="space-y-10">
+                  {items.map((item: any, i: number) => (
+                    <div key={i} className="flex gap-6">
+                      <div className="flex-shrink-0 w-12 flex justify-center">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl z-10 relative shadow-md"
+                          style={{ backgroundColor: item.color || '#4f46e5', color: '#fff' }}>
+                          {item.icon || '•'}
+                        </div>
+                      </div>
+                      <div className="flex-1 pb-2">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{item.date}</span>
+                          <h3 className="text-lg font-bold text-gray-900">{item.title}</h3>
+                        </div>
+                        <p className="text-gray-500 text-sm leading-relaxed">{item.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      }
+
+      // center / alternating
+      return (
+        <section className="py-20 px-8" style={{ backgroundColor: data.bgColor }}>
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <IE as="h2" value={data.title} fieldKey="title" onUpdate={onUpdate}
+                className="text-4xl font-bold text-gray-900 mb-4 block" />
+              <IE as="p" value={data.subtitle} fieldKey="subtitle" onUpdate={onUpdate}
+                className="text-xl text-gray-500 block" />
+            </div>
+            <div className="relative">
+              <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-200 -translate-x-0.5" />
+              <div className="space-y-12">
+                {items.map((item: any, i: number) => {
+                  const isLeft = i % 2 === 0;
+                  return (
+                    <div key={i} className={`flex items-center gap-8 ${isLeft ? '' : 'flex-row-reverse'}`}>
+                      <div className={`flex-1 ${isLeft ? 'text-right' : 'text-left'}`}>
+                        <div className={`inline-block p-6 rounded-2xl bg-white shadow-sm border border-slate-100 max-w-xs ${isLeft ? 'ml-auto' : 'mr-auto'}`}>
+                          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{item.date}</span>
+                          <h3 className="text-lg font-bold text-gray-900 mt-2 mb-1">{item.title}</h3>
+                          <p className="text-gray-500 text-sm leading-relaxed">{item.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 z-10">
+                        <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-lg"
+                          style={{ backgroundColor: item.color || '#4f46e5' }}>
+                          {item.icon || '•'}
+                        </div>
+                      </div>
+                      <div className="flex-1" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    },
+    exportHtml: (data) => {
+      const variant = data.variant || 'center';
+      const items: any[] = data.items || [];
+      const titleHtml = `
+    <div style="text-align:center;margin-bottom:64px;">
+      <h2 style="font-size:2.5rem;font-weight:700;color:#111827;margin-bottom:16px;">${data.title}</h2>
+      <p style="font-size:1.25rem;color:#6b7280;max-width:512px;margin:0 auto;">${data.subtitle}</p>
+    </div>`;
+
+      if (variant === 'left') {
+        return `
+<section style="padding:80px 32px;background:${data.bgColor || '#fff'};">
+  <div style="max-width:672px;margin:0 auto;">
+    ${titleHtml}
+    <div style="position:relative;">
+      <div style="position:absolute;left:24px;top:0;bottom:0;width:2px;background:#e2e8f0;"></div>
+      ${items.map((item: any) => `
+      <div style="display:flex;gap:24px;margin-bottom:40px;position:relative;">
+        <div style="flex-shrink:0;width:48px;height:48px;border-radius:50%;background:${item.color || '#4f46e5'};display:flex;align-items:center;justify-content:center;font-size:1.25rem;z-index:1;box-shadow:0 4px 12px rgba(0,0,0,0.15);">${item.icon || '•'}</div>
+        <div style="flex:1;padding-top:6px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:700;color:#4f46e5;background:#eef2ff;padding:2px 8px;border-radius:999px;">${item.date}</span>
+            <h3 style="font-size:1.125rem;font-weight:700;color:#111827;margin:0;">${item.title}</h3>
+          </div>
+          <p style="color:#6b7280;font-size:0.875rem;line-height:1.7;margin:0;">${item.description}</p>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>
+</section>`;
+      }
+
+      // center alternating
+      return `
+<section style="padding:80px 32px;background:${data.bgColor || '#fff'};">
+  <div style="max-width:960px;margin:0 auto;">
+    ${titleHtml}
+    <div style="position:relative;">
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:2px;background:#e2e8f0;transform:translateX(-50%);"></div>
+      ${items.map((item: any, i: number) => {
+        const isLeft = i % 2 === 0;
+        return `
+      <div style="display:flex;align-items:center;gap:32px;margin-bottom:48px;${isLeft ? '' : 'flex-direction:row-reverse;'}">
+        <div style="flex:1;text-align:${isLeft ? 'right' : 'left'};">
+          <div style="display:inline-block;padding:24px;border-radius:16px;background:#fff;box-shadow:0 2px 16px rgba(0,0,0,0.06);border:1px solid #f1f5f9;max-width:320px;${isLeft ? 'margin-left:auto;' : 'margin-right:auto;'}">
+            <span style="font-size:11px;font-weight:700;color:#4f46e5;background:#eef2ff;padding:2px 8px;border-radius:999px;display:inline-block;">${item.date}</span>
+            <h3 style="font-size:1.125rem;font-weight:700;color:#111827;margin:8px 0 4px;">${item.title}</h3>
+            <p style="color:#6b7280;font-size:0.875rem;line-height:1.7;margin:0;">${item.description}</p>
+          </div>
+        </div>
+        <div style="flex-shrink:0;z-index:1;">
+          <div style="width:56px;height:56px;border-radius:50%;background:${item.color || '#4f46e5'};display:flex;align-items:center;justify-content:center;font-size:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.15);">${item.icon || '•'}</div>
+        </div>
+        <div style="flex:1;"></div>
+      </div>`;
+      }).join('')}
+    </div>
+  </div>
+</section>`;
+    },
+  },
+
+  // ── Embed / Custom Code ───────────────────────────────────────────────────
+  {
+    type: 'embed',
+    label: 'Embed / Code',
+    emoji: '🔗',
+    category: 'Media',
+    fields: [
+      { key: 'title', label: 'Title (optional)', type: 'text' },
+      { key: 'subtitle', label: 'Subtitle (optional)', type: 'textarea' },
+      { key: 'embedType', label: 'Embed Type', type: 'select', options: [
+        { value: 'iframe', label: 'iFrame URL (Calendly, Google Maps, etc.)' },
+        { value: 'html', label: 'Custom HTML / Script' },
+      ]},
+      { key: 'iframeUrl', label: 'iFrame URL', type: 'url', placeholder: 'https://calendly.com/...' },
+      { key: 'iframeHeight', label: 'Height (px)', type: 'text', placeholder: '600' },
+      { key: 'htmlCode', label: 'Custom HTML Code', type: 'textarea' },
+      { key: 'bgColor', label: 'Background', type: 'color' },
+    ],
+    defaultData: {
+      title: 'Book a Demo',
+      subtitle: 'Schedule a time that works for you — we\'d love to show you around.',
+      embedType: 'iframe',
+      iframeUrl: '',
+      iframeHeight: '600',
+      htmlCode: '<!-- Paste your embed code here -->',
+      bgColor: '#ffffff',
+    },
+    renderCanvas: (data, onUpdate) => (
+      <section className="py-20 px-8" style={{ backgroundColor: data.bgColor }}>
+        <div className="max-w-4xl mx-auto">
+          {(data.title || data.subtitle) && (
+            <div className="text-center mb-10">
+              {data.title && (
+                <IE as="h2" value={data.title} fieldKey="title" onUpdate={onUpdate}
+                  className="text-4xl font-bold text-gray-900 mb-4 block" />
+              )}
+              {data.subtitle && (
+                <IE as="p" value={data.subtitle} fieldKey="subtitle" onUpdate={onUpdate}
+                  className="text-xl text-gray-500 block" />
+              )}
+            </div>
+          )}
+          <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+            {data.embedType === 'iframe' && data.iframeUrl ? (
+              <iframe
+                src={data.iframeUrl}
+                style={{ width: '100%', height: `${data.iframeHeight || 600}px`, border: 'none', display: 'block' }}
+                title={data.title || 'Embedded content'}
+              />
+            ) : (
+              <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center">
+                <span className="text-5xl mb-4 block">🔗</span>
+                <p className="text-slate-500 font-medium mb-1">
+                  {data.embedType === 'html' ? 'Custom HTML — visible in exported page' : 'Paste an iFrame URL in the panel →'}
+                </p>
+                <p className="text-xs text-slate-400 font-mono mt-2 max-w-sm mx-auto truncate">
+                  {data.embedType === 'html' ? (data.htmlCode || '').slice(0, 60) + '…' : (data.iframeUrl || 'e.g. https://calendly.com/...')}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    ),
+    exportHtml: (data) => {
+      const height = parseInt(data.iframeHeight) || 600;
+      const titleHtml = (data.title || data.subtitle) ? `
+    <div style="text-align:center;margin-bottom:40px;">
+      ${data.title ? `<h2 style="font-size:2.5rem;font-weight:700;color:#111827;margin-bottom:16px;">${data.title}</h2>` : ''}
+      ${data.subtitle ? `<p style="font-size:1.25rem;color:#6b7280;">${data.subtitle}</p>` : ''}
+    </div>` : '';
+
+      return `
+<section style="padding:80px 32px;background:${data.bgColor || '#fff'};">
+  <div style="max-width:896px;margin:0 auto;">
+    ${titleHtml}
+    ${data.embedType === 'iframe' && data.iframeUrl
+      ? `<div style="border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 2px 16px rgba(0,0,0,0.06);">
+      <iframe src="${data.iframeUrl}" style="width:100%;height:${height}px;border:0;display:block;" title="${data.title || 'Embedded content'}" loading="lazy"></iframe>
+    </div>`
+      : `<div style="border-radius:16px;overflow:hidden;">${data.htmlCode || '<!-- No embed code -->'}</div>`
+    }
+  </div>
+</section>`;
+    },
+  },
 ];
 
 export default BLOCK_DEFS;
