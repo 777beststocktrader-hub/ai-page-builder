@@ -151,11 +151,32 @@ export default function BlockLibrary() {
     return matchesCategory && matchesSearch;
   });
 
-  const handleAdd = (type: string) => {
+  const handleAdd = async (type: string) => {
     const def = BLOCK_DEFS.find((b) => b.type === type);
     if (!def) return;
     addBlock(type, { ...def.defaultData });
-    toast.success(`${def.label} added`);
+
+    // Smart autofill: if page goal is set, generate content for this block
+    if (pageGoal.trim() && !['navbar', 'banner', 'footer', 'divider', 'custom-html', 'embed', 'cookie-consent'].includes(type)) {
+      const blockId = usePageStore.getState().selectedBlockId;
+      if (!blockId) { toast.success(`${def.label} added`); return; }
+      const toastId = toast.loading(`Filling ${def.label} with AI…`);
+      try {
+        const newData = await generateBlockContent(
+          type,
+          'Generate compelling content that matches the page goal. Make it specific and conversion-optimized.',
+          def.defaultData,
+          'marketing',
+          pageGoal
+        );
+        updateBlock(blockId, { ...def.defaultData, ...newData });
+        toast.success(`${def.label} added with AI content! ✨`, { id: toastId });
+      } catch {
+        toast.success(`${def.label} added`, { id: toastId });
+      }
+    } else {
+      toast.success(`${def.label} added`);
+    }
   };
 
   const handlePolishPage = async () => {
