@@ -714,7 +714,7 @@ function EmptyState() {
 }
 
 export default function PropertiesPanel() {
-  const { selectedBlockId, page, updateBlock, deleteBlock, duplicateBlock, moveBlock, toggleBlockVisibility, lockBlock } = usePageStore();
+  const { selectedBlockId, page, updateBlock, updateBlockStyle, deleteBlock, duplicateBlock, moveBlock, toggleBlockVisibility, lockBlock } = usePageStore();
 
   const block = page.blocks.find((b) => b.id === selectedBlockId);
   const blockIndex = page.blocks.findIndex((b) => b.id === selectedBlockId);
@@ -786,6 +786,66 @@ export default function PropertiesPanel() {
 
       {/* Fields */}
       <div className="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-3">
+        {/* Section Background Style */}
+        <div className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-700">
+          <p className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-1.5">
+            <Palette size={10} className="text-indigo-400" /> Section Background
+          </p>
+          <div className="flex gap-1 mb-2">
+            {(['none', 'solid', 'gradient'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => updateBlockStyle(block.id, { ...block.style, bgType: t })}
+                className={`flex-1 py-1 text-xs rounded transition-all capitalize ${(block.style?.bgType || 'none') === t ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'}`}
+              >{t}</button>
+            ))}
+          </div>
+          {block.style?.bgType === 'solid' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={block.style?.bgColor || '#ffffff'}
+                onChange={(e) => updateBlockStyle(block.id, { ...block.style, bgType: 'solid', bgColor: e.target.value })}
+                className="w-7 h-7 rounded cursor-pointer border-0 p-0 bg-transparent"
+              />
+              <input
+                type="text"
+                value={block.style?.bgColor || '#ffffff'}
+                onChange={(e) => updateBlockStyle(block.id, { ...block.style, bgType: 'solid', bgColor: e.target.value })}
+                className="flex-1 bg-slate-900 text-slate-200 text-xs px-2 py-1 rounded border border-slate-700 focus:border-indigo-500 focus:outline-none font-mono"
+              />
+            </div>
+          )}
+          {block.style?.bgType === 'gradient' && (
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  'linear-gradient(135deg,#667eea,#764ba2)',
+                  'linear-gradient(135deg,#f093fb,#f5576c)',
+                  'linear-gradient(135deg,#4facfe,#00f2fe)',
+                  'linear-gradient(135deg,#43e97b,#38f9d7)',
+                  'linear-gradient(135deg,#fa709a,#fee140)',
+                  'linear-gradient(135deg,#a18cd1,#fbc2eb)',
+                ].map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => updateBlockStyle(block.id, { ...block.style, bgType: 'gradient', bgGradient: g })}
+                    className={`h-7 rounded border-2 transition-all ${block.style?.bgGradient === g ? 'border-white' : 'border-transparent hover:border-slate-400'}`}
+                    style={{ background: g }}
+                  />
+                ))}
+              </div>
+              <input
+                type="text"
+                value={block.style?.bgGradient || ''}
+                onChange={(e) => updateBlockStyle(block.id, { ...block.style, bgType: 'gradient', bgGradient: e.target.value })}
+                placeholder="linear-gradient(135deg, #hex, #hex)"
+                className="w-full bg-slate-900 text-slate-200 text-xs px-2 py-1 rounded border border-slate-700 focus:border-indigo-500 focus:outline-none font-mono placeholder-slate-600"
+              />
+            </div>
+          )}
+        </div>
+
         {def.fields.map((field) => (
           <div key={field.key}>
             <label className="block text-xs font-medium text-slate-400 mb-1">{field.label}</label>

@@ -1,9 +1,17 @@
+export interface BlockStyle {
+  bgType?: 'none' | 'solid' | 'gradient';
+  bgColor?: string;
+  bgGradient?: string;
+  paddingY?: 'sm' | 'md' | 'lg' | 'xl';
+}
+
 export interface Block {
   id: string;
   type: string;
   data: Record<string, any>;
   hidden?: boolean;
   locked?: boolean;
+  style?: BlockStyle;
 }
 
 export interface Page {

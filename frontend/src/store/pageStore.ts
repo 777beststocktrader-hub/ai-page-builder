@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
-import { Block, Page, Theme } from '../types';
+import { Block, BlockStyle, Page, Theme } from '../types';
 
 interface History {
   past: Block[][];
@@ -35,6 +35,7 @@ interface PageStore {
   applyBrandColor: (color: string) => void;
   addBlock: (type: string, data: Record<string, any>, afterId?: string) => void;
   updateBlock: (id: string, data: Record<string, any>) => void;
+  updateBlockStyle: (id: string, style: BlockStyle) => void;
   deleteBlock: (id: string) => void;
   duplicateBlock: (id: string) => void;
   toggleBlockVisibility: (id: string) => void;
@@ -185,6 +186,14 @@ export const usePageStore = create<PageStore>((set, get) => ({
       page: {
         ...s.page,
         blocks: s.page.blocks.map((b) => b.id === id ? { ...b, locked: !b.locked } : b),
+      },
+    })),
+
+  updateBlockStyle: (id, style) =>
+    set((s) => ({
+      page: {
+        ...s.page,
+        blocks: s.page.blocks.map((b) => b.id === id ? { ...b, style } : b),
       },
     })),
 

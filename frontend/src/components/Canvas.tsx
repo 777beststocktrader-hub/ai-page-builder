@@ -18,7 +18,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown, Monitor, Tablet, Smartphone } from 'lucide-react';
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
-import { Block } from '../types';
+import { Block, BlockStyle } from '../types';
 import BLOCK_DEFS from '../blocks/blockDefs';
 import { generateBlockContent, generateFullPage, polishPage, translatePage } from '../lib/api';
 import toast from 'react-hot-toast';
@@ -205,7 +205,10 @@ function SortableBlock({ block, selected, existingTypes }: { block: Block; selec
       )}
 
       {/* Block Content — pointer events enabled when selected for inline editing */}
-      <div className={`${selected ? '' : 'pointer-events-none select-none'} ${block.hidden ? 'opacity-30' : ''}`}>
+      <div
+        className={`${selected ? '' : 'pointer-events-none select-none'} ${block.hidden ? 'opacity-30' : ''}`}
+        style={block.style?.bgType === 'solid' ? { backgroundColor: block.style.bgColor } : block.style?.bgType === 'gradient' ? { background: block.style.bgGradient } : undefined}
+      >
         {def.renderCanvas(block.data, onUpdate)}
       </div>
 

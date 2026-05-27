@@ -52,7 +52,13 @@ export function exportPageToHtml(page: Page, theme?: Theme): string {
     .filter((block) => !block.hidden)
     .map((block) => {
       const def = getBlockDef(block.type);
-      return def ? def.exportHtml(block.data) : '';
+      if (!def) return '';
+      const html = def.exportHtml(block.data);
+      if (!block.style?.bgType || block.style.bgType === 'none') return html;
+      const bgStyle = block.style.bgType === 'solid'
+        ? `background-color:${block.style.bgColor || '#fff'}`
+        : `background:${block.style.bgGradient || 'none'}`;
+      return `<div style="${bgStyle}">${html}</div>`;
     })
     .join('\n');
 
