@@ -15,7 +15,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown } from 'lucide-react';
+import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown, Monitor, Tablet, Smartphone } from 'lucide-react';
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
 import { Block } from '../types';
@@ -366,7 +366,7 @@ const LANGUAGES = [
 ];
 
 export default function Canvas() {
-  const { page, selectedBlockId, selectBlock, moveBlock, addBlock, updateBlock, pageGoal, theme } = usePageStore();
+  const { page, selectedBlockId, selectBlock, moveBlock, addBlock, updateBlock, pageGoal, theme, previewMode, setPreviewMode } = usePageStore();
   const [polishing, setPolishing] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
@@ -432,6 +432,20 @@ export default function Canvas() {
             <span>{page.blocks.length} section{page.blocks.length !== 1 ? 's' : ''}</span>
             <span>·</span>
             <span>{estimateReadingTime(page.blocks)}</span>
+            <span>·</span>
+            {/* Preview mode toggle */}
+            <div className="flex items-center gap-0.5 bg-slate-200 rounded-lg p-0.5">
+              {([['desktop', Monitor, 'Desktop'], ['tablet', Tablet, 'Tablet (768px)'], ['mobile', Smartphone, 'Mobile (390px)']] as const).map(([mode, Icon, label]) => (
+                <button
+                  key={mode}
+                  onClick={() => setPreviewMode(mode)}
+                  title={label}
+                  className={`p-1 rounded-md transition-all ${previewMode === mode ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  <Icon size={12} />
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
             {/* Polish Page */}
@@ -487,7 +501,13 @@ export default function Canvas() {
           </div>
         </div>
       )}
-      <div className="min-h-full bg-white max-w-5xl mx-auto shadow-xl my-4">
+      <div
+        className="min-h-full bg-white mx-auto shadow-xl my-4 transition-all duration-300"
+        style={{
+          maxWidth: previewMode === 'mobile' ? 390 : previewMode === 'tablet' ? 768 : undefined,
+          width: previewMode !== 'desktop' ? '100%' : undefined,
+        }}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
