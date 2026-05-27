@@ -150,7 +150,7 @@ const BLOCK_DEFS: BlockDef[] = [
       { key: 'bgColor', label: 'Background Color', type: 'color' },
     ],
     defaultData: {
-      text: '🎉 New: AI Page Builder 2.0 is here. Generate pages 3x faster.',
+      text: '🎉 New: PageGenie 2.0 is here. Generate pages 3x faster.',
       linkText: 'Try it free →',
       bgColor: '#4f46e5',
     },
@@ -272,7 +272,7 @@ const BLOCK_DEFS: BlockDef[] = [
     ],
     defaultData: {
       variant: 'centered',
-      eyebrow: 'Introducing AI Page Builder',
+      eyebrow: 'Introducing PageGenie',
       headline: 'Build Stunning Pages in Minutes',
       subheadline: 'The fastest way to create beautiful landing pages with AI. No design skills required — just describe what you want.',
       primaryBtn: 'Start Building Free',
@@ -828,7 +828,7 @@ const BLOCK_DEFS: BlockDef[] = [
     defaultData: {
       title: 'Frequently Asked Questions',
       items: [
-        { question: 'Do I need to know how to code?', answer: 'Not at all. AI Page Builder is designed for non-technical users. Just drag blocks, type your content, and click export. The AI handles everything else.' },
+        { question: 'Do I need to know how to code?', answer: 'Not at all. PageGenie is designed for non-technical users. Just drag blocks, type your content, and click export. The AI handles everything else.' },
         { question: 'Can I use my own domain?', answer: 'Yes! On the Pro plan you can publish directly to any custom domain. On Starter, you get a free subdomain.' },
         { question: 'How does the AI content generation work?', answer: 'We use Claude AI (Haiku 4.5) to generate copy based on your prompts. Just select a section, describe what you want, and the AI fills it in.' },
         { question: 'Can I export the code?', answer: 'Absolutely. Every page exports to clean, dependency-free HTML and CSS that you can host anywhere — Vercel, Netlify, GitHub Pages, or your own server.' },
@@ -890,7 +890,7 @@ const BLOCK_DEFS: BlockDef[] = [
       variant: 'text-only',
       eyebrow: 'Our Story',
       title: 'We Believe Building Should Be Fun Again',
-      body: 'Too many builders get stuck in the weeds of design tools and frameworks. We built AI Page Builder because we believe the best ideas deserve to ship fast — without sacrificing quality. Our mission is simple: make professional web pages accessible to everyone.',
+      body: 'Too many builders get stuck in the weeds of design tools and frameworks. We built PageGenie because we believe the best ideas deserve to ship fast — without sacrificing quality. Our mission is simple: make professional web pages accessible to everyone.',
       imageUrl: '',
       bgColor: '#f8fafc',
       textAlign: 'center',
@@ -1042,9 +1042,9 @@ const BLOCK_DEFS: BlockDef[] = [
       { key: 'bgColor', label: 'Background Color', type: 'color' },
     ],
     defaultData: {
-      brand: 'AI PageBuilder',
+      brand: 'PageGenie',
       tagline: 'Build beautiful pages with AI.',
-      copyright: `© ${new Date().getFullYear()} AI PageBuilder. All rights reserved.`,
+      copyright: `© ${new Date().getFullYear()} PageGenie. All rights reserved.`,
       links: 'About,Blog,Pricing,Docs,Privacy,Terms,Contact',
       bgColor: '#0f172a',
     },
@@ -1281,7 +1281,7 @@ Traditional page builders lock you in. They're slow, bloated, and require design
 
 ## Our Solution
 
-We built AI PageBuilder to be different. It's fast, intelligent, and puts you in control. No dependencies. No lock-in. Just clean, beautiful pages.
+We built PageGenie to be different. It's fast, intelligent, and puts you in control. No dependencies. No lock-in. Just clean, beautiful pages.
 
 > "The best tools disappear into your workflow." — That's what we built.`,
       bgColor: '#ffffff',
@@ -1517,7 +1517,7 @@ function handleContact(e){
       title: 'Us vs. The Old Way',
       subtitle: 'See exactly why teams switch to us and never look back.',
       col1: 'Old Way',
-      col2: 'AI PageBuilder',
+      col2: 'PageGenie',
       col2Highlight: 'true',
       rows: [
         { feature: 'Time to first page', col1: '2–4 weeks', col2: '< 10 minutes' },

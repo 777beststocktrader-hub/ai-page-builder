@@ -294,7 +294,7 @@ function EmptyState() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 mb-4 shadow-lg shadow-indigo-200">
             <Wand2 size={26} className="text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Build your page with AI</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to PageGenie ✨</h2>
           <p className="text-slate-500 text-sm">Describe your business and get a complete landing page in seconds</p>
         </div>
 

@@ -718,13 +718,13 @@ app.get('/privacy', (_req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Privacy Policy - AI PageBuilder</title>
+<title>Privacy Policy - PageGenie</title>
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:800px;margin:0 auto;padding:40px 24px;color:#1e293b;line-height:1.7}h1{color:#0f172a;font-size:2rem;margin-bottom:8px}h2{color:#1e293b;font-size:1.2rem;margin-top:32px}p,li{color:#475569}a{color:#4f46e5}hr{border:none;border-top:1px solid #e2e8f0;margin:32px 0}.badge{display:inline-block;background:#f1f5f9;color:#64748b;font-size:0.8rem;padding:4px 10px;border-radius:20px;margin-bottom:24px}</style>
 </head>
 <body>
 <h1>Privacy Policy</h1>
 <span class="badge">Last updated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-<p>AI PageBuilder ("the App", "we", "us") is a Shopify app that helps merchants create landing pages using AI. This Privacy Policy explains how we collect, use, and protect your information.</p>
+<p>PageGenie ("the App", "we", "us") is a Shopify app that helps merchants create landing pages using AI. This Privacy Policy explains how we collect, use, and protect your information.</p>
 <h2>Information We Collect</h2>
 <ul>
 <li><strong>Shopify store data:</strong> When you install the App, we receive your store's domain and an access token to publish pages on your behalf.</li>
@@ -753,7 +753,7 @@ app.get('/privacy', (_req, res) => {
 <h2>Contact</h2>
 <p>Questions? Email us at <a href="mailto:777beststocktrader@gmail.com">777beststocktrader@gmail.com</a></p>
 <hr>
-<p style="font-size:0.85rem;color:#94a3b8">AI PageBuilder is not affiliated with Shopify Inc.</p>
+<p style="font-size:0.85rem;color:#94a3b8">PageGenie is not affiliated with Shopify Inc.</p>
 </body></html>`);
 });
 
@@ -763,15 +763,15 @@ app.get('/terms', (_req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Terms of Service - AI PageBuilder</title>
+<title>Terms of Service - PageGenie</title>
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:800px;margin:0 auto;padding:40px 24px;color:#1e293b;line-height:1.7}h1{color:#0f172a;font-size:2rem;margin-bottom:8px}h2{color:#1e293b;font-size:1.2rem;margin-top:32px}p,li{color:#475569}a{color:#4f46e5}hr{border:none;border-top:1px solid #e2e8f0;margin:32px 0}.badge{display:inline-block;background:#f1f5f9;color:#64748b;font-size:0.8rem;padding:4px 10px;border-radius:20px;margin-bottom:24px}</style>
 </head>
 <body>
 <h1>Terms of Service</h1>
 <span class="badge">Last updated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-<p>By installing or using AI PageBuilder, you agree to these Terms of Service.</p>
+<p>By installing or using PageGenie, you agree to these Terms of Service.</p>
 <h2>The Service</h2>
-<p>AI PageBuilder is a Shopify embedded app that allows merchants to create, customize, and publish landing pages using AI-generated content.</p>
+<p>PageGenie is a Shopify embedded app that allows merchants to create, customize, and publish landing pages using AI-generated content.</p>
 <h2>Acceptable Use</h2>
 <p>You may not use the App to create pages that:</p>
 <ul>
@@ -790,7 +790,7 @@ app.get('/terms', (_req, res) => {
 <h2>Contact</h2>
 <p>Questions? Email us at <a href="mailto:777beststocktrader@gmail.com">777beststocktrader@gmail.com</a></p>
 <hr>
-<p style="font-size:0.85rem;color:#94a3b8">AI PageBuilder is not affiliated with Shopify Inc.</p>
+<p style="font-size:0.85rem;color:#94a3b8">PageGenie is not affiliated with Shopify Inc.</p>
 </body></html>`);
 });
 
@@ -836,7 +836,7 @@ app.get('*', (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 AI Page Builder running on http://localhost:${PORT}`);
+  console.log(`\n🚀 PageGenie running on http://localhost:${PORT}`);
   console.log(`🛍️  Install URL: http://localhost:${PORT}/api/auth?shop=YOUR-STORE.myshopify.com`);
   console.log(`🤖  Model: claude-haiku-4-5-20251001\n`);
 });
