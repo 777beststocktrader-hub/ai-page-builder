@@ -15,7 +15,8 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown, Monitor, Tablet, Smartphone } from 'lucide-react';
+import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown, Monitor, Tablet, Smartphone, ShoppingBag } from 'lucide-react';
+import ProductPickerModal from './ProductPickerModal';
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
 import { Block, BlockStyle } from '../types';
@@ -263,7 +264,13 @@ function EmptyState() {
   const { addBlock, setPageGoal, setPageTitle } = usePageStore();
   const [goal, setGoal] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Check if Shopify store is connected (OAuth or direct)
+  const shopParam = new URLSearchParams(window.location.search).get('shop');
+  const directCreds = (() => { try { const r = localStorage.getItem('ai-pb-shopify-creds'); return r ? JSON.parse(r) : null; } catch { return null; } })();
+  const hasShopify = !!(shopParam || directCreds?.shop);
 
   const handleGenerate = async (customGoal?: string) => {
     const finalGoal = customGoal || goal;
@@ -287,78 +294,108 @@ function EmptyState() {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 cursor-default p-8">
-      <div className="w-full max-w-xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 mb-4 shadow-lg shadow-indigo-200">
-            <Wand2 size={26} className="text-white" />
+    <>
+      {showProductPicker && <ProductPickerModal onClose={() => setShowProductPicker(false)} />}
+      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 cursor-default p-8 overflow-y-auto">
+        <div className="w-full max-w-xl">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 mb-4 shadow-lg shadow-indigo-200">
+              <Wand2 size={26} className="text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to PageGenie ✨</h2>
+            <p className="text-slate-500 text-sm">Build a stunning landing page in seconds</p>
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to PageGenie ✨</h2>
-          <p className="text-slate-500 text-sm">Describe your business and get a complete landing page in seconds</p>
-        </div>
 
-        {/* AI input */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-lg shadow-slate-100 p-1 mb-4 flex items-center gap-2">
-          <Sparkles size={16} className="text-indigo-400 ml-3 flex-shrink-0" />
-          <input
-            ref={inputRef}
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !generating) handleGenerate(); }}
-            placeholder="e.g. SaaS tool for managing client projects..."
-            className="flex-1 text-sm text-slate-700 bg-transparent outline-none py-3 placeholder-slate-400"
-            disabled={generating}
-          />
-          <button
-            onClick={() => handleGenerate()}
-            disabled={generating}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all flex-shrink-0"
-          >
-            {generating ? (
-              <><Loader2 size={14} className="animate-spin" /> Building…</>
-            ) : (
-              <><Zap size={14} /> Generate</>
-            )}
-          </button>
-        </div>
-
-        {/* Quick goals */}
-        <div className="flex flex-wrap gap-2 justify-center mb-8">
-          {QUICK_GOALS.map((q) => (
+          {/* Build from Product — prominent if Shopify connected */}
+          {hasShopify && (
             <button
-              key={q.label}
-              onClick={() => { setGoal(q.goal); handleGenerate(q.goal); }}
+              onClick={() => setShowProductPicker(true)}
               disabled={generating}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 rounded-full text-xs font-medium text-slate-600 hover:text-indigo-700 transition-all disabled:opacity-50 shadow-sm"
+              className="w-full mb-4 flex items-center gap-4 p-4 bg-white border-2 border-green-300 hover:border-green-500 hover:bg-green-50 rounded-2xl shadow-md transition-all group disabled:opacity-50"
             >
-              {q.label} <ArrowRight size={10} />
+              <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-green-200 group-hover:scale-105 transition-transform">
+                <ShoppingBag size={22} className="text-white" />
+              </div>
+              <div className="text-left flex-1">
+                <p className="text-slate-800 font-bold text-sm">Build from My Products ⚡</p>
+                <p className="text-slate-500 text-xs mt-0.5">AI auto-detects your Shopify products and builds the perfect landing page using real product data</p>
+              </div>
+              <ArrowRight size={18} className="text-green-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
             </button>
-          ))}
-        </div>
+          )}
 
-        {/* Or add manually */}
-        <div className="text-center">
-          <p className="text-xs text-slate-400 mb-3">Or add sections manually</p>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {['hero', 'features', 'pricing', 'testimonials', 'cta', 'faq'].map((type) => {
-              const def = BLOCK_DEFS.find((b) => b.type === type);
-              if (!def) return null;
-              return (
-                <button
-                  key={def.type}
-                  onClick={() => { addBlock(def.type, { ...def.defaultData }); toast.success(`${def.label} added`); }}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs hover:border-indigo-300 hover:shadow-sm transition-all text-slate-600 hover:text-indigo-700"
-                >
-                  <span>{def.emoji}</span>
-                  <span className="font-medium">{def.label}</span>
-                </button>
-              );
-            })}
+          {/* Divider */}
+          {hasShopify && (
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-1 h-px bg-slate-300" />
+              <span className="text-xs text-slate-400 font-medium">or describe your business</span>
+              <div className="flex-1 h-px bg-slate-300" />
+            </div>
+          )}
+
+          {/* AI input */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-lg shadow-slate-100 p-1 mb-4 flex items-center gap-2">
+            <Sparkles size={16} className="text-indigo-400 ml-3 flex-shrink-0" />
+            <input
+              ref={inputRef}
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !generating) handleGenerate(); }}
+              placeholder="e.g. Premium skincare brand for busy women..."
+              className="flex-1 text-sm text-slate-700 bg-transparent outline-none py-3 placeholder-slate-400"
+              disabled={generating}
+            />
+            <button
+              onClick={() => handleGenerate()}
+              disabled={generating}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all flex-shrink-0"
+            >
+              {generating ? (
+                <><Loader2 size={14} className="animate-spin" /> Building…</>
+              ) : (
+                <><Zap size={14} /> Generate</>
+              )}
+            </button>
+          </div>
+
+          {/* Quick goals */}
+          <div className="flex flex-wrap gap-2 justify-center mb-6">
+            {QUICK_GOALS.map((q) => (
+              <button
+                key={q.label}
+                onClick={() => { setGoal(q.goal); handleGenerate(q.goal); }}
+                disabled={generating}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 rounded-full text-xs font-medium text-slate-600 hover:text-indigo-700 transition-all disabled:opacity-50 shadow-sm"
+              >
+                {q.label} <ArrowRight size={10} />
+              </button>
+            ))}
+          </div>
+
+          {/* Or add manually */}
+          <div className="text-center">
+            <p className="text-xs text-slate-400 mb-3">Or add sections manually</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {['hero', 'features', 'pricing', 'testimonials', 'cta', 'faq'].map((type) => {
+                const def = BLOCK_DEFS.find((b) => b.type === type);
+                if (!def) return null;
+                return (
+                  <button
+                    key={def.type}
+                    onClick={() => { addBlock(def.type, { ...def.defaultData }); toast.success(`${def.label} added`); }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs hover:border-indigo-300 hover:shadow-sm transition-all text-slate-600 hover:text-indigo-700"
+                  >
+                    <span>{def.emoji}</span>
+                    <span className="font-medium">{def.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

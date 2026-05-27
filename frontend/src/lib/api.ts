@@ -110,6 +110,36 @@ export async function generateBrandPalette(
   return data.palettes || [];
 }
 
+export interface ShopifyProduct {
+  id: number;
+  title: string;
+  description: string;
+  vendor: string;
+  productType: string;
+  tags: string[];
+  price: string;
+  comparePrice: string | null;
+  image: string | null;
+  handle: string;
+  variantCount: number;
+}
+
+export async function fetchShopifyProducts(shop: string, token?: string): Promise<ShopifyProduct[]> {
+  const params = new URLSearchParams({ shop });
+  if (token) params.set('token', token);
+  const { data } = await api.get(`/shopify/products?${params}`);
+  if (!data.success) throw new Error(data.error || 'Failed to fetch products');
+  return data.products || [];
+}
+
+export async function generatePageFromProduct(
+  product: ShopifyProduct
+): Promise<{ tagline: string; blocks: Array<{ type: string; data: Record<string, any> }>; product: ShopifyProduct }> {
+  const { data } = await api.post('/ai/generate-from-product', { product });
+  if (!data.success) throw new Error(data.error || 'Page generation failed');
+  return { tagline: data.tagline || '', blocks: data.blocks || [], product: data.product };
+}
+
 export async function abTestHeadlines(
   headline: string,
   subheadline?: string,

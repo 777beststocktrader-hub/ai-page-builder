@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2, Globe } from 'lucide-react';
+import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2, Globe, Package } from 'lucide-react';
 import ProjectsModal from './ProjectsModal';
 import ShopifyConnectModal, { getShopifyCredentials, clearShopifyCredentials, ShopifyCredentials } from './ShopifyConnectModal';
+import ProductPickerModal from './ProductPickerModal';
 import MySitesModal from './MySitesModal';
 import { usePageStore } from '../store/pageStore';
 import { downloadHtml, copyHtml, previewInNewTab, downloadZip, exportPageToHtml, exportPageJson, importPageJson } from '../lib/htmlExport';
@@ -25,6 +26,7 @@ export default function Toolbar() {
   const [publishingWeb, setPublishingWeb] = useState(false);
   const [webUrl, setWebUrl] = useState<string | null>(null);
   const [showMySites, setShowMySites] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(false);
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -95,6 +97,7 @@ export default function Toolbar() {
     <>
     {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
     {showMySites && <MySitesModal onClose={() => setShowMySites(false)} />}
+    {showProductPicker && <ProductPickerModal onClose={() => setShowProductPicker(false)} />}
     {showShopifyConnect && (
       <ShopifyConnectModal
         onClose={() => setShowShopifyConnect(false)}
@@ -408,6 +411,18 @@ export default function Toolbar() {
           </button>
         )}
         <div className="w-px h-5 bg-slate-700 mx-1" />
+
+        {/* Build from Product button — show when Shopify is connected */}
+        {(shopifyCreds || inShopify) && (
+          <button
+            onClick={() => setShowProductPicker(true)}
+            title="Build a landing page from your Shopify products"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-green-300 bg-green-900/30 hover:bg-green-800/50 border border-green-800/50 hover:border-green-600/60 rounded-md transition-all"
+          >
+            <Package size={13} />
+            From Products
+          </button>
+        )}
 
         {/* Shopify connect indicator */}
         {shopifyCreds ? (

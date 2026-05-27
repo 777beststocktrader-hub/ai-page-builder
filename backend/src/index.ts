@@ -185,6 +185,149 @@ Rules: Keep all keys. Headlines under 10 words. Keep URLs as "#". Keep color hex
   }
 });
 
+// ── Shopify Products Fetch ────────────────────────────────────────────────
+app.get('/api/shopify/products', async (req, res) => {
+  const shop = (req.query.shop as string || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const token = req.query.token as string;
+
+  if (!shop) return res.status(400).json({ success: false, error: 'shop required' });
+
+  // Resolve token: use provided token or look up OAuth session
+  let accessToken = token;
+  if (!accessToken) {
+    const { getSessionForShop } = await import('./shopify');
+    const session = await getSessionForShop(shop);
+    if (session?.accessToken) accessToken = session.accessToken;
+  }
+
+  if (!accessToken) {
+    return res.status(401).json({ success: false, error: 'No access token. Connect your store first.' });
+  }
+
+  try {
+    const response = await fetch(
+      `https://${shop}/admin/api/2024-01/products.json?limit=50&fields=id,title,body_html,vendor,product_type,tags,images,variants,handle,status`,
+      { headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' } }
+    );
+    if (!response.ok) {
+      const err = await response.text();
+      if (response.status === 401) return res.status(401).json({ success: false, error: 'Invalid token. Reconnect your store.' });
+      throw new Error(`Shopify error: ${err}`);
+    }
+    const { products } = await response.json() as { products: any[] };
+
+    // Shape the data for the frontend
+    const shaped = products
+      .filter((p: any) => p.status === 'active' || !p.status)
+      .map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        description: (p.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500),
+        vendor: p.vendor || '',
+        productType: p.product_type || '',
+        tags: typeof p.tags === 'string' ? p.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+        price: p.variants?.[0]?.price || '0.00',
+        comparePrice: p.variants?.[0]?.compare_at_price || null,
+        image: p.images?.[0]?.src || null,
+        handle: p.handle,
+        variantCount: p.variants?.length || 1,
+      }));
+
+    res.json({ success: true, products: shaped });
+  } catch (err: any) {
+    console.error('Products fetch error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── AI Generate Page from Product ─────────────────────────────────────────
+app.post('/api/ai/generate-from-product', async (req, res) => {
+  const { product } = req.body;
+  if (!product?.title) return res.status(400).json({ success: false, error: 'product required' });
+
+  const priceStr = product.comparePrice
+    ? `$${product.price} (was $${product.comparePrice})`
+    : `$${product.price}`;
+
+  const productContext = [
+    `Product name: ${product.title}`,
+    product.vendor ? `Brand: ${product.vendor}` : '',
+    product.productType ? `Category: ${product.productType}` : '',
+    `Price: ${priceStr}`,
+    product.description ? `Description: ${product.description}` : '',
+    product.tags?.length ? `Tags/keywords: ${product.tags.join(', ')}` : '',
+  ].filter(Boolean).join('\n');
+
+  try {
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      system: 'You are an expert e-commerce copywriter and conversion specialist. Write compelling product landing page copy. Respond with valid JSON only. No markdown.',
+      messages: [{
+        role: 'user',
+        content: `Create a complete, high-converting Shopify product landing page for this product:
+
+${productContext}
+
+Return ONLY this JSON (no markdown, no extra text):
+{"tagline":"short tagline","blocks":[{"type":"block_type","data":{...}}]}
+
+Block types with exact data shapes:
+hero: {"variant":"centered","eyebrow":"str","headline":"str","subheadline":"str","primaryBtn":"str","secondaryBtn":"str","bgFrom":"#hex","bgTo":"#hex"}
+features: {"variant":"grid","title":"str","subtitle":"str","features":[{"icon":"emoji","title":"str","description":"str"}]}
+steps: {"title":"str","subtitle":"str","steps":[{"icon":"emoji","title":"str","description":"str"}],"bgColor":"#hex"}
+pricing: {"title":"str","subtitle":"str","plans":[{"name":"str","price":"str","period":"str","description":"str","cta":"str","highlighted":"true|false","features":"comma,separated"}]}
+testimonials: {"title":"str","testimonials":[{"quote":"str","name":"str","role":"str","avatar":"XY","avatarBg":"#hex"}]}
+cta: {"headline":"str","subtext":"str","primaryBtn":"str","secondaryBtn":"str","bgColor":"#hex"}
+faq: {"title":"str","items":[{"question":"str","answer":"str"}]}
+stats: {"title":"str","stats":[{"value":"str","label":"str"}],"bgColor":"#hex"}
+footer: {"brand":"str","tagline":"str","copyright":"str","links":"About,Pricing,Blog,Contact","bgColor":"#hex"}
+logo-cloud: {"title":"str","logos":[{"name":"str","initial":"XY"}]}
+
+Rules:
+- Choose 7-8 blocks: always start hero, always end footer
+- Write SPECIFIC copy about THIS product — use the real product name, real price, real benefits
+- Hero headline: make it about the transformation/benefit this product delivers
+- Hero primaryBtn: "Buy Now — ${priceStr}" or "Get Yours for ${priceStr}"
+- Hero eyebrow: something like "New Arrival" or "Top Rated" or the brand name
+- features: exactly 6 items — specific product benefits/features with relevant emojis
+- testimonials: 3 realistic reviews for this type of product
+- faq: 4 specific questions buyers ask about this type of product
+- stats: 4 numbers that build credibility (customer count, rating, satisfaction %, etc.)
+- If comparePrice exists, highlight the savings in the hero subheadline
+- steps: "How it works" — 3 steps (order → receive → enjoy/use)
+- bgFrom/bgTo: dark gradient matching brand/product vibe
+- avatarBg: vary "#4f46e5","#0891b2","#059669","#dc2626"`,
+      }],
+    });
+
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '{}';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return res.status(500).json({ success: false, error: 'Invalid AI response' });
+
+    let data: any;
+    try { data = JSON.parse(match[0]); }
+    catch {
+      const cleaned = match[0].replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+      try { data = JSON.parse(cleaned); }
+      catch { return res.status(500).json({ success: false, error: 'JSON parse error — please try again' }); }
+    }
+
+    if (!Array.isArray(data.blocks) || data.blocks.length === 0) {
+      return res.status(500).json({ success: false, error: 'No blocks generated — please try again' });
+    }
+
+    const VALID_TYPES = new Set(['banner','navbar','hero','features','pricing','testimonials','cta','faq','text-content','stats','footer','video','logo-cloud','newsletter','richtext','contact','steps','comparison','team','countdown','gallery','timeline','embed','divider','testimonial-single','cta-banner','cookie-consent','custom-html']);
+    data.blocks = data.blocks.filter((b: any) => VALID_TYPES.has(b.type));
+
+    console.log(`Product page generated for: ${product.title} — ${data.blocks.length} blocks`);
+    res.json({ success: true, ...data, product });
+  } catch (err: any) {
+    console.error('Generate from product error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── AI Full Page Generation (with real content) ───────────────────────────
 app.post('/api/ai/generate-page', async (req, res) => {
   const { pageGoal } = req.body;
