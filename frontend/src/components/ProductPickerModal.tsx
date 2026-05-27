@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, ShoppingBag, Loader2, Sparkles, Search, Star, Tag, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, ShoppingBag, Loader2, Sparkles, Search, Tag, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
 import { fetchShopifyProducts, generatePageFromProduct, ShopifyProduct } from '../lib/api';
 import { getShopifyCredentials } from './ShopifyConnectModal';
 import { usePageStore } from '../store/pageStore';
@@ -21,6 +21,7 @@ export default function ProductPickerModal({ onClose }: Props) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<number | 'auto' | null>(null);
   const [error, setError] = useState('');
+  const [reinstallUrl, setReinstallUrl] = useState('');
   const [query, setQuery] = useState('');
 
   // Resolve shop + token from either OAuth session or localStorage credentials
@@ -39,12 +40,16 @@ export default function ProductPickerModal({ onClose }: Props) {
   const loadProducts = async () => {
     setLoading(true);
     setError('');
+    setReinstallUrl('');
     try {
       const list = await fetchShopifyProducts(shop, token);
       setProducts(list);
       if (list.length === 0) setError('No active products found in your store.');
     } catch (err: any) {
-      setError(err.message || 'Failed to load products');
+      const msg = err.response?.data?.error || err.message || 'Failed to load products';
+      const url = err.response?.data?.reinstallUrl || '';
+      setError(msg);
+      if (url) setReinstallUrl(url);
     }
     setLoading(false);
   };
@@ -170,11 +175,21 @@ export default function ProductPickerModal({ onClose }: Props) {
 
           {error && (
             <div className="flex flex-col items-center gap-4 py-10">
-              <div className="flex items-center gap-2 p-4 bg-red-950/30 border border-red-800/40 rounded-xl max-w-sm w-full">
-                <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
+              <div className="flex items-start gap-3 p-4 bg-red-950/30 border border-red-800/40 rounded-xl max-w-sm w-full">
+                <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-red-400">{error}</p>
               </div>
-              {shop && (
+              {reinstallUrl ? (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-xs text-slate-500 text-center">Your session expired because the server restarted.<br/>Click below to reconnect — takes 10 seconds.</p>
+                  <a
+                    href={reinstallUrl}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-xl transition-all"
+                  >
+                    <ExternalLink size={14} /> Reconnect Store
+                  </a>
+                </div>
+              ) : shop && (
                 <button onClick={loadProducts}
                   className="flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-all">
                   <RefreshCw size={14} /> Try again

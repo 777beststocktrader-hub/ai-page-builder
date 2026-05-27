@@ -201,7 +201,11 @@ app.get('/api/shopify/products', async (req, res) => {
   }
 
   if (!accessToken) {
-    return res.status(401).json({ success: false, error: 'No access token. Connect your store first.' });
+    return res.status(401).json({
+      success: false,
+      error: 'Session expired. Please reinstall the app to reconnect.',
+      reinstallUrl: `${process.env.APP_URL || ''}/api/auth?shop=${shop}`,
+    });
   }
 
   try {
