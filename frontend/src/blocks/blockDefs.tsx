@@ -264,9 +264,10 @@ const BLOCK_DEFS: BlockDef[] = [
       { key: 'eyebrow', label: 'Eyebrow Text', type: 'text', placeholder: 'Introducing...' },
       { key: 'headline', label: 'Headline', type: 'text', placeholder: 'Your main headline' },
       { key: 'subheadline', label: 'Subheadline', type: 'textarea', placeholder: 'Brief description' },
-      { key: 'primaryBtn', label: 'Primary Button', type: 'text', placeholder: 'Get Started' },
+      { key: 'primaryBtn', label: 'Primary Button Text', type: 'text', placeholder: 'Get Started' },
+      { key: 'primaryBtnHref', label: 'Primary Button Link', type: 'url', placeholder: 'https://...' },
       { key: 'secondaryBtn', label: 'Secondary Button', type: 'text', placeholder: 'Learn More' },
-      { key: 'imageUrl', label: 'Image URL (for split)', type: 'url', placeholder: 'https://...' },
+      { key: 'imageUrl', label: 'Product/Hero Image URL', type: 'url', placeholder: 'https://...' },
       { key: 'bgFrom', label: 'Gradient From', type: 'color' },
       { key: 'bgTo', label: 'Gradient To', type: 'color' },
     ],
@@ -276,6 +277,7 @@ const BLOCK_DEFS: BlockDef[] = [
       headline: 'Build Stunning Pages in Minutes',
       subheadline: 'The fastest way to create beautiful landing pages with AI. No design skills required — just describe what you want.',
       primaryBtn: 'Start Building Free',
+      primaryBtnHref: '',
       secondaryBtn: 'See Examples',
       imageUrl: '',
       bgFrom: '#0f172a',
@@ -283,6 +285,8 @@ const BLOCK_DEFS: BlockDef[] = [
     },
     renderCanvas: (data, onUpdate) => {
       const v = data.variant || 'centered';
+      const buyHref = data.primaryBtnHref || '#';
+      const hasProductImg = !!data.imageUrl;
 
       if (v === 'split') {
         return (
@@ -298,7 +302,8 @@ const BLOCK_DEFS: BlockDef[] = [
                 <IE as="p" value={data.subheadline} fieldKey="subheadline" onUpdate={onUpdate}
                   className="text-lg text-blue-100 mb-8 leading-relaxed block" />
                 <div className="flex flex-wrap gap-3">
-                  <a href="#" className="px-7 py-3.5 bg-white text-indigo-900 rounded-xl font-semibold hover:bg-blue-50 transition-all shadow-lg">
+                  <a href={buyHref} target={buyHref !== '#' ? '_blank' : undefined} rel="noopener noreferrer"
+                    className="px-7 py-3.5 bg-white text-indigo-900 rounded-xl font-semibold hover:bg-blue-50 transition-all shadow-lg">
                     <IE as="span" value={data.primaryBtn} fieldKey="primaryBtn" onUpdate={onUpdate} />
                   </a>
                   <a href="#" className="px-7 py-3.5 rounded-xl font-semibold border border-white/30 hover:bg-white/10 transition-all">
@@ -307,7 +312,7 @@ const BLOCK_DEFS: BlockDef[] = [
                 </div>
               </div>
               <div className="flex-1 min-w-[260px]">
-                {data.imageUrl ? (
+                {hasProductImg ? (
                   <img src={data.imageUrl} alt="" className="rounded-2xl shadow-2xl w-full object-cover" style={{ maxHeight: '420px' }} />
                 ) : (
                   <div className="rounded-2xl bg-white/10 border-2 border-dashed border-white/20 aspect-video flex flex-col items-center justify-center gap-2">
@@ -332,7 +337,8 @@ const BLOCK_DEFS: BlockDef[] = [
               <IE as="p" value={data.subheadline} fieldKey="subheadline" onUpdate={onUpdate}
                 className="text-xl text-gray-500 mb-10 max-w-2xl leading-relaxed block" />
               <div className="flex flex-wrap gap-4">
-                <a href="#" className="px-8 py-4 bg-slate-900 text-white rounded-xl font-semibold text-lg hover:bg-slate-800 transition-all">
+                <a href={buyHref} target={buyHref !== '#' ? '_blank' : undefined} rel="noopener noreferrer"
+                  className="px-8 py-4 bg-slate-900 text-white rounded-xl font-semibold text-lg hover:bg-slate-800 transition-all">
                   <IE as="span" value={data.primaryBtn} fieldKey="primaryBtn" onUpdate={onUpdate} />
                 </a>
                 <a href="#" className="px-8 py-4 text-slate-500 hover:text-slate-900 font-semibold text-lg transition-all flex items-center gap-2">
@@ -344,25 +350,37 @@ const BLOCK_DEFS: BlockDef[] = [
         );
       }
 
-      // centered (default)
+      // centered — with optional product image overlay background
+      const bgStyle: React.CSSProperties = hasProductImg
+        ? {
+            backgroundImage: `linear-gradient(135deg, ${data.bgFrom}ee 0%, ${data.bgTo}cc 100%), url(${data.imageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }
+        : { background: `linear-gradient(135deg, ${data.bgFrom} 0%, ${data.bgTo} 100%)` };
+
       return (
-        <section
-          style={{ background: `linear-gradient(135deg, ${data.bgFrom} 0%, ${data.bgTo} 100%)` }}
-          className="py-28 px-8 text-center text-white"
-        >
-          <div className="max-w-3xl mx-auto">
+        <section style={bgStyle} className="py-28 px-8 text-center text-white relative">
+          {/* Product image badge */}
+          {hasProductImg && (
+            <div className="absolute top-6 right-6 w-24 h-24 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 hidden lg:block">
+              <img src={data.imageUrl} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div className="max-w-3xl mx-auto relative">
             <IE as="span" value={data.eyebrow} fieldKey="eyebrow" onUpdate={onUpdate}
               className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-widest uppercase mb-6"
-              style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }} />
+              style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)' }} />
             <IE as="h1" value={data.headline} fieldKey="headline" onUpdate={onUpdate}
               className="text-5xl lg:text-6xl font-bold mb-6 leading-tight block w-full" />
             <IE as="p" value={data.subheadline} fieldKey="subheadline" onUpdate={onUpdate}
               className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto leading-relaxed block" />
             <div className="flex flex-wrap gap-4 justify-center">
-              <a href="#" className="px-8 py-4 bg-white text-indigo-900 rounded-xl font-semibold text-lg hover:bg-blue-50 transition-all shadow-lg">
+              <a href={buyHref} target={buyHref !== '#' ? '_blank' : undefined} rel="noopener noreferrer"
+                className="px-8 py-4 bg-white text-indigo-900 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all shadow-xl shadow-black/30">
                 <IE as="span" value={data.primaryBtn} fieldKey="primaryBtn" onUpdate={onUpdate} />
               </a>
-              <a href="#" className="px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/10 transition-all border border-white/30">
+              <a href="#" className="px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/10 transition-all border border-white/30 backdrop-blur-sm">
                 <IE as="span" value={data.secondaryBtn} fieldKey="secondaryBtn" onUpdate={onUpdate} /> →
               </a>
             </div>
@@ -372,6 +390,8 @@ const BLOCK_DEFS: BlockDef[] = [
     },
     exportHtml: (data) => {
       const v = data.variant || 'centered';
+      const buyHref = data.primaryBtnHref || '#';
+      const hasImg = !!data.imageUrl;
       if (v === 'split') return `
 <section style="background:linear-gradient(135deg,${data.bgFrom} 0%,${data.bgTo} 100%);padding:80px 32px;color:#fff;">
   <div style="max-width:960px;margin:0 auto;display:flex;align-items:center;gap:48px;flex-wrap:wrap;">
@@ -380,12 +400,12 @@ const BLOCK_DEFS: BlockDef[] = [
       <h1 style="font-size:2.75rem;font-weight:700;margin-bottom:20px;line-height:1.15;">${data.headline}</h1>
       <p style="font-size:1.125rem;color:rgba(219,234,254,1);margin-bottom:32px;line-height:1.7;">${data.subheadline}</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
-        <a href="#" style="padding:14px 28px;background:#fff;color:#1e1b4b;border-radius:12px;font-weight:600;">${data.primaryBtn}</a>
-        <a href="#" style="padding:14px 28px;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:12px;font-weight:600;">${data.secondaryBtn}</a>
+        <a href="${buyHref}" style="padding:14px 28px;background:#fff;color:#1e1b4b;border-radius:12px;font-weight:700;text-decoration:none;">${data.primaryBtn}</a>
+        <a href="#" style="padding:14px 28px;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:12px;font-weight:600;text-decoration:none;">${data.secondaryBtn}</a>
       </div>
     </div>
     <div style="flex:1;min-width:260px;">
-      ${data.imageUrl ? `<img src="${data.imageUrl}" alt="" style="border-radius:16px;box-shadow:0 25px 50px rgba(0,0,0,0.3);width:100%;object-fit:cover;max-height:420px;" />` : `<div style="border-radius:16px;background:rgba(255,255,255,0.08);aspect-ratio:16/9;"></div>`}
+      ${hasImg ? `<img src="${data.imageUrl}" alt="${data.headline}" style="border-radius:16px;box-shadow:0 25px 50px rgba(0,0,0,0.3);width:100%;object-fit:cover;max-height:420px;" />` : `<div style="border-radius:16px;background:rgba(255,255,255,0.08);aspect-ratio:16/9;"></div>`}
     </div>
   </div>
 </section>`;
@@ -396,20 +416,25 @@ const BLOCK_DEFS: BlockDef[] = [
     <h1 style="font-size:5rem;font-weight:900;color:#0f172a;margin-bottom:24px;line-height:1;letter-spacing:-0.02em;">${data.headline}</h1>
     <p style="font-size:1.25rem;color:#6b7280;margin-bottom:40px;max-width:512px;line-height:1.7;">${data.subheadline}</p>
     <div style="display:flex;gap:16px;flex-wrap:wrap;">
-      <a href="#" style="padding:16px 32px;background:#0f172a;color:#fff;border-radius:12px;font-weight:600;font-size:1.125rem;">${data.primaryBtn}</a>
-      <a href="#" style="padding:16px 32px;color:#64748b;font-weight:600;font-size:1.125rem;">${data.secondaryBtn} →</a>
+      <a href="${buyHref}" style="padding:16px 32px;background:#0f172a;color:#fff;border-radius:12px;font-weight:700;font-size:1.125rem;text-decoration:none;">${data.primaryBtn}</a>
+      <a href="#" style="padding:16px 32px;color:#64748b;font-weight:600;font-size:1.125rem;text-decoration:none;">${data.secondaryBtn} →</a>
     </div>
   </div>
 </section>`;
+      // centered — with optional product image overlay
+      const bgCss = hasImg
+        ? `background:linear-gradient(135deg,${data.bgFrom}ee 0%,${data.bgTo}cc 100%),url(${data.imageUrl});background-size:cover;background-position:center;`
+        : `background:linear-gradient(135deg,${data.bgFrom} 0%,${data.bgTo} 100%);`;
       return `
-<section style="background:linear-gradient(135deg,${data.bgFrom} 0%,${data.bgTo} 100%);padding:112px 32px;text-align:center;color:#fff;">
-  <div style="max-width:768px;margin:0 auto;">
-    <span style="display:inline-block;padding:6px 16px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);margin-bottom:24px;">${data.eyebrow}</span>
+<section style="${bgCss}padding:112px 32px;text-align:center;color:#fff;position:relative;">
+  ${hasImg ? `<div style="position:absolute;top:24px;right:24px;width:96px;height:96px;border-radius:16px;overflow:hidden;border:2px solid rgba(255,255,255,0.2);box-shadow:0 20px 40px rgba(0,0,0,0.4);"><img src="${data.imageUrl}" alt="${data.headline}" style="width:100%;height:100%;object-fit:cover;" /></div>` : ''}
+  <div style="max-width:768px;margin:0 auto;position:relative;">
+    <span style="display:inline-block;padding:6px 16px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.9);margin-bottom:24px;backdrop-filter:blur(8px);">${data.eyebrow}</span>
     <h1 style="font-size:3.5rem;font-weight:700;margin-bottom:24px;line-height:1.15;">${data.headline}</h1>
     <p style="font-size:1.25rem;color:rgba(219,234,254,1);margin-bottom:40px;max-width:512px;margin-left:auto;margin-right:auto;line-height:1.7;">${data.subheadline}</p>
     <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
-      <a href="#" style="padding:16px 32px;background:#fff;color:#1e1b4b;border-radius:12px;font-weight:600;font-size:1.125rem;">${data.primaryBtn}</a>
-      <a href="#" style="padding:16px 32px;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:12px;font-weight:600;font-size:1.125rem;">${data.secondaryBtn} →</a>
+      <a href="${buyHref}" style="padding:16px 32px;background:#fff;color:#1e1b4b;border-radius:12px;font-weight:700;font-size:1.125rem;text-decoration:none;box-shadow:0 20px 40px rgba(0,0,0,0.3);">${data.primaryBtn}</a>
+      <a href="#" style="padding:16px 32px;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:12px;font-weight:600;font-size:1.125rem;text-decoration:none;">${data.secondaryBtn} →</a>
     </div>
   </div>
 </section>`;

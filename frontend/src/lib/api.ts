@@ -133,9 +133,10 @@ export async function fetchShopifyProducts(shop: string, token?: string): Promis
 }
 
 export async function generatePageFromProduct(
-  product: ShopifyProduct
+  product: ShopifyProduct,
+  shop?: string
 ): Promise<{ tagline: string; blocks: Array<{ type: string; data: Record<string, any> }>; product: ShopifyProduct }> {
-  const { data } = await api.post('/ai/generate-from-product', { product });
+  const { data } = await api.post('/ai/generate-from-product', { product, shop: shop || '' });
   if (!data.success) throw new Error(data.error || 'Page generation failed');
   return { tagline: data.tagline || '', blocks: data.blocks || [], product: data.product };
 }

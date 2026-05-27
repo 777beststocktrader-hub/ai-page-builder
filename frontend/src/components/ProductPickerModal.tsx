@@ -52,7 +52,7 @@ export default function ProductPickerModal({ onClose }: Props) {
   const buildPageForProduct = async (product: ShopifyProduct) => {
     setGenerating(product.id);
     try {
-      const { blocks, tagline } = await generatePageFromProduct(product);
+      const { blocks, tagline } = await generatePageFromProduct(product, shop);
       if (blocks.length === 0) throw new Error('No blocks generated');
 
       // Set page goal for context

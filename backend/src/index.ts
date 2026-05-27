@@ -320,6 +320,38 @@ Rules:
     const VALID_TYPES = new Set(['banner','navbar','hero','features','pricing','testimonials','cta','faq','text-content','stats','footer','video','logo-cloud','newsletter','richtext','contact','steps','comparison','team','countdown','gallery','timeline','embed','divider','testimonial-single','cta-banner','cookie-consent','custom-html']);
     data.blocks = data.blocks.filter((b: any) => VALID_TYPES.has(b.type));
 
+    // Inject real product data into the hero block
+    const heroBlock = data.blocks.find((b: any) => b.type === 'hero');
+    if (heroBlock) {
+      // Product image as hero background
+      if (product.image) {
+        heroBlock.data.imageUrl = product.image;
+      }
+      // Real "Buy Now" link → Shopify product page
+      const shop = (req.body.shop || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+      if (product.handle) {
+        const productUrl = shop
+          ? `https://${shop}/products/${product.handle}`
+          : `#`;
+        heroBlock.data.primaryBtnHref = productUrl;
+      }
+      // Use split variant to show product image prominently
+      if (product.image && heroBlock.data.variant !== 'minimal') {
+        heroBlock.data.variant = 'split';
+      }
+    }
+
+    // Also inject product URL into any CTA blocks
+    const shop = (req.body.shop || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (product.handle && shop) {
+      const productUrl = `https://${shop}/products/${product.handle}`;
+      data.blocks.forEach((b: any) => {
+        if (b.type === 'cta' || b.type === 'cta-banner') {
+          b.data.primaryBtnHref = productUrl;
+        }
+      });
+    }
+
     console.log(`Product page generated for: ${product.title} — ${data.blocks.length} blocks`);
     res.json({ success: true, ...data, product });
   } catch (err: any) {
