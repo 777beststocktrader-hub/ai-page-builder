@@ -794,6 +794,40 @@ app.get('/terms', (_req, res) => {
 </body></html>`);
 });
 
+// ── AI Brand Palette Generator ───────────────────────────────────────────
+app.post('/api/ai/brand-palette', async (req, res) => {
+  const { description } = req.body;
+  if (!description?.trim()) return res.status(400).json({ success: false, error: 'Description required' });
+  try {
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      system: 'You are a brand designer. Return JSON only. No markdown, no explanation.',
+      messages: [{
+        role: 'user',
+        content: `Generate a brand color palette for: "${description}"
+
+Return this JSON exactly:
+{
+  "palettes": [
+    {"name":"Professional","primaryColor":"#1e40af","font":"Inter","rationale":"Clean and trustworthy"},
+    {"name":"Bold","primaryColor":"#7c3aed","font":"Space Grotesk","rationale":"Modern and energetic"},
+    {"name":"Warm","primaryColor":"#d97706","font":"Poppins","rationale":"Approachable and friendly"}
+  ]
+}
+
+Choose colors that fit the brand. Use hex codes. Fonts: Inter, Poppins, Space Grotesk, Outfit, Raleway, DM Sans, Sora, Nunito.`,
+      }],
+    });
+    const raw = message.content[0].type === 'text' ? message.content[0].text : '{}';
+    const match = raw.match(/\{[\s\S]*\}/);
+    const data = match ? JSON.parse(match[0]) : { palettes: [] };
+    res.json({ success: true, palettes: data.palettes || [] });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── Serve React frontend in production ────────────────────────────────────
 const frontendDist = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDist));

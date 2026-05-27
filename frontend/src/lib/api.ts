@@ -102,6 +102,14 @@ export async function translatePage(
   return data.blocks;
 }
 
+export async function generateBrandPalette(
+  description: string
+): Promise<{ name: string; primaryColor: string; font: string; rationale: string }[]> {
+  const { data } = await api.post('/ai/brand-palette', { description });
+  if (!data.success) throw new Error(data.error || 'Palette generation failed');
+  return data.palettes || [];
+}
+
 export async function abTestHeadlines(
   headline: string,
   subheadline?: string,

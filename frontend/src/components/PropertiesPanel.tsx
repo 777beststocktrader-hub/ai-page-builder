@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Maximize2, Lock, Unlock } from 'lucide-react';
-import { generateSeoDescription, analyzePageConversions } from '../lib/api';
+import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Maximize2, Lock, Unlock, Wand2, Share2 } from 'lucide-react';
+import { generateSeoDescription, analyzePageConversions, generateBrandPalette } from '../lib/api';
 
 const FONT_OPTIONS = [
   { value: 'Inter', label: 'Inter — Clean & Modern' },
@@ -407,6 +407,22 @@ function EmptyState() {
   const [genSeo, setGenSeo] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<{ score: number; tips: { issue: string; fix: string; priority: string }[]; missing: string[] } | null>(null);
+  const [paletteDesc, setPaletteDesc] = useState('');
+  const [paletteLoading, setPaletteLoading] = useState(false);
+  const [palettes, setPalettes] = useState<{ name: string; primaryColor: string; font: string; rationale: string }[]>([]);
+
+  const handleGeneratePalette = async () => {
+    if (!paletteDesc.trim()) return;
+    setPaletteLoading(true);
+    try {
+      const result = await generateBrandPalette(paletteDesc.trim());
+      setPalettes(result);
+    } catch {
+      // fail silently
+    }
+    setPaletteLoading(false);
+  };
+
   return (
     <div className="flex flex-col h-full overflow-y-auto scrollbar-thin">
       <div className="flex flex-col items-center justify-center p-6 text-center">
@@ -477,6 +493,69 @@ function EmptyState() {
               Apply all
             </button>
           )}
+        </div>
+
+        {/* AI Brand Palette Generator */}
+        <div className="mt-3 pt-3 border-t border-slate-700">
+          <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5">
+            <Wand2 size={10} className="text-purple-400" />
+            AI Brand Palette
+          </p>
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              value={paletteDesc}
+              onChange={(e) => setPaletteDesc(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleGeneratePalette(); }}
+              placeholder="e.g. luxury spa, tech startup..."
+              className="flex-1 bg-slate-900 text-slate-200 text-xs px-2 py-1.5 rounded border border-slate-700 focus:border-purple-500 focus:outline-none placeholder-slate-600 min-w-0"
+            />
+            <button
+              onClick={handleGeneratePalette}
+              disabled={paletteLoading || !paletteDesc.trim()}
+              className="px-2.5 py-1.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs rounded flex items-center gap-1 flex-shrink-0 transition-all"
+            >
+              {paletteLoading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+            </button>
+          </div>
+          {palettes.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {palettes.map((p) => (
+                <button
+                  key={p.name}
+                  onClick={() => { setTheme({ ...theme, primaryColor: p.primaryColor, font: p.font }); }}
+                  className="w-full flex items-center gap-2 p-2 rounded-lg border border-slate-700 hover:border-purple-500 hover:bg-purple-950/30 transition-all text-left group"
+                >
+                  <div className="w-6 h-6 rounded-md flex-shrink-0 shadow-sm" style={{ backgroundColor: p.primaryColor }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-200 group-hover:text-white">{p.name}</p>
+                    <p className="text-xs text-slate-500 truncate">{p.rationale}</p>
+                  </div>
+                  <span className="text-xs text-slate-600 font-mono flex-shrink-0">{p.primaryColor}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Social Media Preview */}
+      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <Share2 size={11} className="text-indigo-400" />
+          Social Media Preview
+        </p>
+        <p className="text-xs text-slate-600 mb-2">How your page looks when shared</p>
+        {/* Twitter/X card preview */}
+        <div className="rounded-xl overflow-hidden border border-slate-700 text-xs">
+          <div className="h-20 flex items-center justify-center text-slate-600 text-sm font-bold" style={{ background: `linear-gradient(135deg, ${theme.primaryColor}22, ${theme.primaryColor}44)` }}>
+            <span style={{ color: theme.primaryColor }}>{page.title || 'Page Title'}</span>
+          </div>
+          <div className="p-2.5 bg-slate-900">
+            <p className="font-semibold text-slate-200 text-xs truncate">{page.title || 'Your Page Title'}</p>
+            <p className="text-slate-500 text-xs mt-0.5 line-clamp-2">{page.description || 'Add a meta description to improve social sharing.'}</p>
+            <p className="text-slate-600 text-xs mt-1 truncate">🌐 {typeof window !== 'undefined' ? window.location.hostname : 'yoursite.com'}</p>
+          </div>
         </div>
       </div>
 
