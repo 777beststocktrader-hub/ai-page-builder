@@ -404,6 +404,7 @@ function PageQualityBadges({ page }: { page: import('../types').Page }) {
 
 function EmptyState() {
   const { theme, setTheme, page, setPageDescription, pageGoal, applyBrandColor } = usePageStore();
+  const [activeTab, setActiveTab] = useState<'theme' | 'seo' | 'analyze'>('theme');
   const [genSeo, setGenSeo] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<{ score: number; tips: { issue: string; fix: string; priority: string }[]; missing: string[] } | null>(null);
@@ -431,11 +432,27 @@ function EmptyState() {
         <p className="text-slate-500 text-xs">Or add blocks from the left panel</p>
       </div>
 
-      <PageQualityBadges page={page} />
-      <LiveSeoScore page={page} />
+      <div className="mx-3 mb-3 grid grid-cols-3 gap-1 rounded-lg bg-slate-900/70 p-1 border border-slate-700">
+        {([
+          ['theme', 'Theme'],
+          ['seo', 'SEO'],
+          ['analyze', 'Analyze'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={`py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === key ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'analyze' && <PageQualityBadges page={page} />}
+      {activeTab === 'seo' && <LiveSeoScore page={page} />}
 
       {/* Theme Presets */}
-      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <div className={`${activeTab === 'theme' ? '' : 'hidden'} mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700`}>
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <Palette size={11} className="text-indigo-400" />
           Theme Presets
@@ -540,7 +557,7 @@ function EmptyState() {
       </div>
 
       {/* Social Media Preview */}
-      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <div className={`${activeTab === 'seo' ? '' : 'hidden'} mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700`}>
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <Share2 size={11} className="text-indigo-400" />
           Social Media Preview
@@ -560,7 +577,7 @@ function EmptyState() {
       </div>
 
       {/* Font */}
-      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <div className={`${activeTab === 'theme' ? '' : 'hidden'} mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700`}>
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <Type size={11} className="text-indigo-400" />
           Export Font
@@ -578,7 +595,7 @@ function EmptyState() {
       </div>
 
       {/* Spacing */}
-      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <div className={`${activeTab === 'theme' ? '' : 'hidden'} mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700`}>
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <Maximize2 size={11} className="text-indigo-400" />
           Section Spacing
@@ -598,7 +615,7 @@ function EmptyState() {
       </div>
 
       {/* SEO Settings */}
-      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <div className={`${activeTab === 'seo' ? '' : 'hidden'} mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700`}>
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <Search size={11} className="text-indigo-400" />
           SEO / Meta
@@ -638,7 +655,7 @@ function EmptyState() {
       </div>
 
       {/* Conversion Rate Analysis */}
-      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <div className={`${activeTab === 'analyze' ? '' : 'hidden'} mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700`}>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <TrendingUp size={11} className="text-green-400" />
@@ -690,7 +707,7 @@ function EmptyState() {
       </div>
 
       {/* Shortcuts */}
-      <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
+      <div className="hidden mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Shortcuts</p>
         {[
           { keys: 'Click text', label: 'Edit inline (selected block)' },

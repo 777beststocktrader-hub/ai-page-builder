@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2, Globe, Package } from 'lucide-react';
+import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2, Globe, Package, MoreHorizontal, Upload } from 'lucide-react';
 import ProjectsModal from './ProjectsModal';
 import ShopifyConnectModal, { getShopifyCredentials, clearShopifyCredentials, ShopifyCredentials } from './ShopifyConnectModal';
 import ProductPickerModal from './ProductPickerModal';
@@ -27,6 +27,7 @@ export default function Toolbar() {
   const [webUrl, setWebUrl] = useState<string | null>(null);
   const [showMySites, setShowMySites] = useState(false);
   const [showProductPicker, setShowProductPicker] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
@@ -325,6 +326,7 @@ export default function Toolbar() {
 
         <div className="w-px h-5 bg-slate-700 mx-1" />
 
+        <div className="hidden items-center gap-1">
         <button
           onClick={handleShare}
           disabled={sharing}
@@ -413,14 +415,15 @@ export default function Toolbar() {
         <div className="w-px h-5 bg-slate-700 mx-1" />
 
         {/* Build from Product button — show when Shopify is connected */}
+        </div>
         {(shopifyCreds || inShopify) && (
           <button
             onClick={() => setShowProductPicker(true)}
             title="Build a landing page from your Shopify products"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-green-300 bg-green-900/30 hover:bg-green-800/50 border border-green-800/50 hover:border-green-600/60 rounded-md transition-all"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-200 bg-emerald-900/35 hover:bg-emerald-800/55 border border-emerald-700/50 hover:border-emerald-500/60 rounded-md transition-all"
           >
             <Package size={13} />
-            From Products
+            Build from products
           </button>
         )}
 
@@ -451,6 +454,68 @@ export default function Toolbar() {
             Connect Store
           </button>
         )}
+
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => setShowMoreActions(!showMoreActions)}
+            title="More actions"
+            className={`p-2 rounded-md transition-all ${showMoreActions ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+          >
+            <MoreHorizontal size={16} />
+          </button>
+          {showMoreActions && (
+            <div className="absolute right-0 top-10 z-[220] w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-1.5">
+              <button onClick={handleShare} disabled={sharing || page.blocks.length === 0}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
+                {sharing ? <Loader2 size={13} className="animate-spin" /> : <Share2 size={13} />} Share preview
+              </button>
+              <button onClick={() => previewInNewTab(page, theme)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
+                <ExternalLink size={13} /> Open preview tab
+              </button>
+              <button onClick={() => { copyHtml(page, theme); toast.success('HTML copied!'); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
+                <Copy size={13} /> Copy HTML
+              </button>
+              <div className="h-px bg-slate-700 my-1" />
+              <button onClick={() => { downloadHtml(page, theme); toast.success('HTML exported!'); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
+                <Download size={13} /> Export HTML
+              </button>
+              <button onClick={() => { downloadZip(page, theme); toast.success('Bundling ZIP...'); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
+                <Download size={13} /> Export ZIP
+              </button>
+              <button onClick={() => { exportPageJson(page, theme); toast.success('JSON exported!'); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
+                <Download size={13} /> Export JSON
+              </button>
+              <button onClick={() => importPageJson((p, t) => {
+                  usePageStore.getState().loadProject(p, '', t ?? usePageStore.getState().theme);
+                  toast.success('Page imported!');
+                })}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
+                <Upload size={13} /> Import JSON
+              </button>
+              <div className="h-px bg-slate-700 my-1" />
+              <button onClick={() => setShowMySites(true)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
+                <Globe size={13} /> My published sites
+              </button>
+              {webUrl ? (
+                <a href={webUrl} target="_blank" rel="noopener noreferrer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-300 hover:text-white hover:bg-emerald-900/50 rounded-lg">
+                  <CheckCircle size={13} /> Open web page
+                </a>
+              ) : (
+                <button onClick={handlePublishWeb} disabled={publishingWeb || page.blocks.length === 0}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-300 hover:text-white hover:bg-emerald-900/50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
+                  {publishingWeb ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />} Save as web page
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {publishedUrl ? (
           <a

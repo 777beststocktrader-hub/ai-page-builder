@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function ProductPickerModal({ onClose }: Props) {
-  const { addBlock, setPageGoal, setPageTitle } = usePageStore();
+  const { addBlock, setPageGoal, setPageTitle, newProject } = usePageStore();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<number | 'auto' | null>(null);
@@ -24,9 +24,8 @@ export default function ProductPickerModal({ onClose }: Props) {
   const [reinstallUrl, setReinstallUrl] = useState('');
   const [query, setQuery] = useState('');
 
-  // Resolve shop + token from either OAuth session or localStorage credentials
+  // Resolve shop from OAuth URL or the last store selected before OAuth.
   const shop = getShopFromUrl() || getShopifyCredentials()?.shop || '';
-  const token = getShopifyCredentials()?.token;
 
   useEffect(() => {
     if (!shop) {
@@ -42,7 +41,7 @@ export default function ProductPickerModal({ onClose }: Props) {
     setError('');
     setReinstallUrl('');
     try {
-      const list = await fetchShopifyProducts(shop, token);
+      const list = await fetchShopifyProducts(shop);
       setProducts(list);
       if (list.length === 0) setError('No active products found in your store.');
     } catch (err: any) {
@@ -59,6 +58,9 @@ export default function ProductPickerModal({ onClose }: Props) {
     try {
       const { blocks, tagline } = await generatePageFromProduct(product, shop);
       if (blocks.length === 0) throw new Error('No blocks generated');
+
+      // Clear existing page and start fresh
+      newProject();
 
       // Set page goal for context
       setPageGoal(`Product landing page for ${product.title} — ${product.vendor || 'Shopify store'}`);
@@ -120,8 +122,8 @@ export default function ProductPickerModal({ onClose }: Props) {
               <ShoppingBag size={16} className="text-green-400" />
             </div>
             <div>
-              <h2 className="text-white font-semibold text-base">Build from Your Products</h2>
-              <p className="text-slate-500 text-xs">AI generates the perfect landing page for any product</p>
+              <h2 className="text-white font-semibold text-base">Build a sales page from a product</h2>
+              <p className="text-slate-500 text-xs">Uses your product image, price, description, and AI conversion copy</p>
             </div>
           </div>
           <button onClick={onClose} disabled={isAnyGenerating}
@@ -132,7 +134,7 @@ export default function ProductPickerModal({ onClose }: Props) {
 
         {/* Auto-pick CTA */}
         {!loading && !error && products.length > 0 && (
-          <div className="px-5 py-3 border-b border-slate-700 flex-shrink-0 bg-indigo-950/40">
+          <div className="px-5 py-4 border-b border-slate-700 flex-shrink-0 bg-indigo-950/40">
             <button
               onClick={autoPickBest}
               disabled={isAnyGenerating}
@@ -141,10 +143,17 @@ export default function ProductPickerModal({ onClose }: Props) {
               {generating === 'auto' ? (
                 <><Loader2 size={15} className="animate-spin" /> AI is analyzing your products…</>
               ) : (
-                <><Sparkles size={15} /> Auto-detect best product &amp; build page</>
+                <><Sparkles size={15} /> Pick best product and build full sales page</>
               )}
             </button>
-            <p className="text-xs text-slate-500 text-center mt-1.5">Or pick a specific product below</p>
+            <div className="grid grid-cols-5 gap-1.5 mt-3">
+              {['Hero', 'Benefits', 'Proof', 'FAQ', 'CTA'].map((item) => (
+                <div key={item} className="rounded-lg bg-slate-900/70 border border-slate-700 px-2 py-1.5 text-center text-[10px] font-bold text-slate-300">
+                  {item}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500 text-center mt-2">Or pick a specific product below</p>
           </div>
         )}
 
@@ -298,7 +307,7 @@ export default function ProductPickerModal({ onClose }: Props) {
                           </span>
                         ) : (
                           <span className="flex items-center justify-center gap-1.5">
-                            <Sparkles size={11} /> Build Landing Page
+                            <Sparkles size={11} /> Build Sales Page
                           </span>
                         )}
                       </div>
@@ -313,7 +322,7 @@ export default function ProductPickerModal({ onClose }: Props) {
         {/* Footer */}
         {!loading && !error && products.length > 0 && (
           <div className="px-5 py-3 border-t border-slate-700 flex items-center justify-between flex-shrink-0">
-            <p className="text-xs text-slate-500">{products.length} product{products.length !== 1 ? 's' : ''} in your store</p>
+            <p className="text-xs text-slate-500">{products.length} product{products.length !== 1 ? 's' : ''} ready for a sales page</p>
             <button onClick={loadProducts} disabled={isAnyGenerating}
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-all disabled:opacity-40">
               <RefreshCw size={12} /> Refresh

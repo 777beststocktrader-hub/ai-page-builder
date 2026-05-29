@@ -1,5 +1,7 @@
 import '@shopify/shopify-api/adapters/node';
 import { shopifyApi, LATEST_API_VERSION, Session } from '@shopify/shopify-api';
+import { Request } from 'express';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
@@ -41,12 +43,88 @@ console.log(`Loaded ${sessionMap.size} persisted session(s) from disk`);
 export const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY || '',
   apiSecretKey: process.env.SHOPIFY_API_SECRET || '',
-  scopes: ['read_content', 'write_content', 'read_themes', 'read_products'],
+  scopes: ['read_content', 'write_content', 'read_products'],
   hostName: (process.env.APP_URL || 'localhost:3001').replace(/^https?:\/\//, ''),
   apiVersion: LATEST_API_VERSION,
   isEmbeddedApp: true,
   logger: { level: 0 },
 });
+
+export const SHOPIFY_GRAPHQL_API_VERSION = process.env.SHOPIFY_API_VERSION || '2026-01';
+
+export async function adminGraphql<T>(
+  shop: string,
+  accessToken: string,
+  query: string,
+  variables: Record<string, any> = {}
+): Promise<T> {
+  const response = await fetch(`https://${shop}/admin/api/${SHOPIFY_GRAPHQL_API_VERSION}/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+
+  const data = await response.json() as { data?: T; errors?: any[] };
+  if (!response.ok || data.errors?.length) {
+    throw new Error(`Shopify GraphQL error: ${JSON.stringify(data.errors || data)}`);
+  }
+
+  return data.data as T;
+}
+
+function decodeBase64Url(value: string): Buffer {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  return Buffer.from(normalized, 'base64');
+}
+
+export interface ShopifySessionTokenPayload {
+  aud: string;
+  dest: string;
+  exp: number;
+  iss: string;
+  nbf?: number;
+  sub: string;
+}
+
+export function verifyShopifySessionToken(token: string): ShopifySessionTokenPayload | null {
+  const secret = process.env.SHOPIFY_API_SECRET;
+  const apiKey = process.env.SHOPIFY_API_KEY;
+  if (!secret || !apiKey) return null;
+
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [header, payload, signature] = parts;
+  const expected = crypto.createHmac('sha256', secret).update(`${header}.${payload}`).digest();
+  const received = decodeBase64Url(signature);
+  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) return null;
+
+  try {
+    const decoded = JSON.parse(decodeBase64Url(payload).toString('utf8')) as ShopifySessionTokenPayload;
+    const now = Math.floor(Date.now() / 1000);
+    if (decoded.aud !== apiKey) return null;
+    if (decoded.exp <= now) return null;
+    if (decoded.nbf && decoded.nbf > now) return null;
+    if (!decoded.dest?.startsWith('https://')) return null;
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+export function getShopFromSessionToken(req: Request): string | null {
+  const header = req.headers.authorization || '';
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  if (!match) return null;
+
+  const payload = verifyShopifySessionToken(match[1]);
+  if (!payload) return null;
+
+  return payload.dest.replace(/^https:\/\//, '').replace(/\/$/, '');
+}
 
 export const sessionStorage = {
   storeSession: async (session: Session): Promise<boolean> => {

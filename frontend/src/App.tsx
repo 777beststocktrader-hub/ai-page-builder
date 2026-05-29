@@ -4,10 +4,13 @@ import Toolbar from './components/Toolbar';
 import BlockLibrary from './components/BlockLibrary';
 import Canvas from './components/Canvas';
 import PropertiesPanel from './components/PropertiesPanel';
+import TrialBanner from './components/TrialBanner';
+import PaywallModal from './components/PaywallModal';
 import { usePageStore } from './store/pageStore';
 import { exportPageToHtml } from './lib/htmlExport';
 import { saveProject } from './lib/projects';
 import { getBlockDef } from './blocks/blockDefs';
+import { getClientId, fetchBillingStatus, BillingStatus } from './lib/billing';
 import { Search, X, Keyboard } from 'lucide-react';
 
 const SHORTCUTS = [
@@ -150,6 +153,30 @@ export default function App() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [clientId] = useState(() => getClientId());
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  // Load billing status on mount and after Shopify billing approval.
+  useEffect(() => {
+    fetchBillingStatus(clientId).then(status => {
+      setBilling(status);
+      if (status.status === 'expired') setShowPaywall(true);
+    }).catch(() => {});
+
+    // Handle Shopify billing success redirect.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('billing') === 'success') {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.delete('billing');
+      window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`);
+      // Re-fetch after a short delay for webhook to process
+      setTimeout(() => {
+        fetchBillingStatus(clientId).then(setBilling).catch(() => {});
+      }, 2000);
+    }
+  }, [clientId]);
 
   // Auto-save to localStorage with debounce
   useEffect(() => {
@@ -237,6 +264,16 @@ export default function App() {
     <div className="h-screen flex flex-col bg-slate-900 overflow-hidden">
       {showSearch && <BlockSearchOverlay onClose={() => setShowSearch(false)} />}
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
+
+      {/* Paywall — blocks the UI when trial expired */}
+      {showPaywall && billing && (
+        <PaywallModal
+          clientId={clientId}
+          billing={billing}
+          onClose={billing.status !== 'expired' ? () => setShowPaywall(false) : undefined}
+        />
+      )}
+
       <Toaster
         position="bottom-center"
         toastOptions={{
@@ -244,6 +281,16 @@ export default function App() {
           success: { iconTheme: { primary: '#4f46e5', secondary: '#fff' } },
         }}
       />
+
+      {/* Trial countdown banner — shows when ≤7 days left */}
+      {billing && !bannerDismissed && (
+        <TrialBanner
+          clientId={clientId}
+          billing={billing}
+          onDismiss={() => setBannerDismissed(true)}
+          onUpgraded={() => fetchBillingStatus(clientId).then(setBilling).catch(() => {})}
+        />
+      )}
 
       <Toolbar />
 
@@ -265,7 +312,9 @@ export default function App() {
         {!isPreview && (
           <aside className="w-64 bg-slate-800 border-l border-slate-700 flex flex-col flex-shrink-0 overflow-hidden">
             <div className="px-3 py-2 border-b border-slate-700">
-              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Properties</h2>
+              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                {selectedBlockId ? 'Edit' : 'Settings'}
+              </h2>
             </div>
             <PropertiesPanel />
           </aside>

@@ -1,6 +1,16 @@
 import axios from 'axios';
+import { getClientId } from './billing';
+import { getShopFromUrl, getShopifySessionToken } from './shopifyAppBridge';
 
 const api = axios.create({ baseURL: '/api' });
+
+api.interceptors.request.use(async config => {
+  config.headers = config.headers || {};
+  const token = await getShopifySessionToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['x-client-id'] = getShopFromUrl() || getClientId();
+  return config;
+});
 
 export async function generateBlockContent(
   blockType: string,
@@ -124,9 +134,8 @@ export interface ShopifyProduct {
   variantCount: number;
 }
 
-export async function fetchShopifyProducts(shop: string, token?: string): Promise<ShopifyProduct[]> {
+export async function fetchShopifyProducts(shop: string): Promise<ShopifyProduct[]> {
   const params = new URLSearchParams({ shop });
-  if (token) params.set('token', token);
   const { data } = await api.get(`/shopify/products?${params}`);
   if (!data.success) throw new Error(data.error || 'Failed to fetch products');
   return data.products || [];

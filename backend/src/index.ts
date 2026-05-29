@@ -9,20 +9,30 @@ import Anthropic from '@anthropic-ai/sdk';
 import authRouter from './routes/auth';
 import webhooksRouter from './routes/webhooks';
 import publishRouter from './routes/publish';
+import billingRouter from './routes/billing';
+import { getLocalBillingStatus, getShopifyBillingStatus } from './billing';
+import { adminGraphql, getSessionForShop, getShopFromSessionToken } from './shopify';
 
 const SUBSCRIBERS_FILE = path.join(__dirname, '../../data/subscribers.json');
-function loadSubscribers(): string[] {
+type SubscriberRecord = { email: string; shop: string | null; subscribedAt: string };
+function loadSubscribers(): SubscriberRecord[] {
   try {
     const dir = path.dirname(SUBSCRIBERS_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     if (!fs.existsSync(SUBSCRIBERS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(SUBSCRIBERS_FILE, 'utf8'));
+    const records = JSON.parse(fs.readFileSync(SUBSCRIBERS_FILE, 'utf8'));
+    if (!Array.isArray(records)) return [];
+    return records.map((record: any) => (
+      typeof record === 'string'
+        ? { email: record, shop: null, subscribedAt: new Date(0).toISOString() }
+        : record
+    ));
   } catch { return []; }
 }
-function saveSubscriber(email: string) {
+function saveSubscriber(email: string, shop: string | null = null) {
   const list = loadSubscribers();
-  if (!list.includes(email)) {
-    list.push(email);
+  if (!list.some((record) => record.email === email && record.shop === shop)) {
+    list.push({ email, shop, subscribedAt: new Date().toISOString() });
     fs.writeFileSync(SUBSCRIBERS_FILE, JSON.stringify(list, null, 2));
   }
 }
@@ -44,7 +54,14 @@ const upload = multer({
   },
 });
 
-// Shopify requires the raw body for HMAC verification on webhooks
+// Raw body capture for billing and Shopify webhook HMAC verification
+app.use('/api/billing/webhook', express.raw({ type: 'application/json' }), (req, _res, next) => {
+  if (Buffer.isBuffer(req.body)) {
+    (req as any).rawBody = req.body;
+    req.body = JSON.parse(req.body.toString());
+  }
+  next();
+});
 app.use('/api/webhooks', express.raw({ type: 'application/json' }), (req, _res, next) => {
   if (Buffer.isBuffer(req.body)) {
     (req as any).rawBody = req.body;
@@ -77,6 +94,34 @@ app.use(
   })
 );
 
+// ── Billing (Shopify Billing API) ──────────────────────────────────────────────────────
+app.use('/api/billing', billingRouter);
+
+// ── Billing middleware — gates AI routes after trial expires ──────────────
+async function requireBilling(req: any, res: any, next: any) {
+  try {
+    const tokenShop = getShopFromSessionToken(req);
+    const clientId = (tokenShop || req.headers['x-client-id'] as string || req.query.clientId as string || '').trim();
+    if (!clientId) return next();
+
+    const status = clientId.endsWith('.myshopify.com')
+      ? await getShopifyBillingStatus(clientId)
+      : getLocalBillingStatus(clientId);
+
+    if (status.status === 'expired') {
+      return res.status(402).json({
+        success: false,
+        error: 'Your free trial has ended. Please approve the Shopify subscription to continue.',
+        billingRequired: true,
+      });
+    }
+
+    next();
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 // ── Shopify OAuth ──────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
 
@@ -86,47 +131,6 @@ app.use('/api/webhooks', webhooksRouter);
 // ── Publish pages to Shopify ──────────────────────────────────────────────
 app.use('/api/shopify/publish', publishRouter);
 
-// ── Direct publish with Custom App token (no OAuth required) ─────────────
-app.post('/api/shopify/direct-publish', async (req, res) => {
-  const { shop, token, pageTitle, html, pageId } = req.body;
-  if (!shop || !token || !pageTitle || !html) {
-    return res.status(400).json({ success: false, error: 'Missing shop, token, pageTitle, or html' });
-  }
-  const cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const headers = { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token };
-
-  try {
-    let response: Response;
-    if (pageId) {
-      // Update existing page
-      response = await fetch(`https://${cleanShop}/admin/api/2024-01/pages/${pageId}.json`, {
-        method: 'PUT', headers,
-        body: JSON.stringify({ page: { id: pageId, title: pageTitle, body_html: html, published: true } }),
-      });
-    } else {
-      // Create new page
-      response = await fetch(`https://${cleanShop}/admin/api/2024-01/pages.json`, {
-        method: 'POST', headers,
-        body: JSON.stringify({ page: { title: pageTitle, body_html: html, published: true } }),
-      });
-    }
-
-    if (!response.ok) {
-      const err = await response.text();
-      if (response.status === 401) return res.status(401).json({ success: false, error: 'Invalid access token. Check your Custom App token.' });
-      throw new Error(`Shopify error: ${err}`);
-    }
-
-    const data = await response.json() as { page: { id: number; handle: string; title: string } };
-    const pageUrl = `https://${cleanShop}/pages/${data.page.handle}`;
-    const adminUrl = `https://${cleanShop}/admin/pages/${data.page.id}`;
-    console.log(`✅ Direct-published: ${pageUrl}`);
-    res.json({ success: true, page: data.page, url: pageUrl, adminUrl });
-  } catch (err: any) {
-    console.error('Direct publish error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
 
 // ── Image Upload ──────────────────────────────────────────────────────────
 app.use('/uploads', express.static(UPLOADS_DIR));
@@ -146,7 +150,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── AI Content Generation ─────────────────────────────────────────────────
-app.post('/api/ai/generate', async (req, res) => {
+app.post('/api/ai/generate', requireBilling, async (req, res) => {
   const { prompt, blockType, tone = 'professional', currentData, context } = req.body;
 
   const toneGuide: Record<string, string> = {
@@ -187,54 +191,89 @@ Rules: Keep all keys. Headlines under 10 words. Keep URLs as "#". Keep color hex
 
 // ── Shopify Products Fetch ────────────────────────────────────────────────
 app.get('/api/shopify/products', async (req, res) => {
-  const shop = (req.query.shop as string || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const token = req.query.token as string;
+  const tokenShop = getShopFromSessionToken(req);
+  const shop = tokenShop || (req.query.shop as string || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   if (!shop) return res.status(400).json({ success: false, error: 'shop required' });
 
-  // Resolve token: use provided token or look up OAuth session
-  let accessToken = token;
-  if (!accessToken) {
-    const { getSessionForShop } = await import('./shopify');
-    const session = await getSessionForShop(shop);
-    if (session?.accessToken) accessToken = session.accessToken;
-  }
-
-  if (!accessToken) {
+  const session = await getSessionForShop(shop);
+  if (!session?.accessToken) {
     return res.status(401).json({
       success: false,
-      error: 'Session expired. Please reinstall the app to reconnect.',
-      reinstallUrl: `${process.env.APP_URL || ''}/api/auth?shop=${shop}`,
+      error: 'Not authenticated. Reinstall PageGenie from Shopify admin to reconnect products.',
+      reinstallUrl: `/api/auth?shop=${shop}`,
     });
   }
 
   try {
-    const response = await fetch(
-      `https://${shop}/admin/api/2024-01/products.json?limit=50&fields=id,title,body_html,vendor,product_type,tags,images,variants,handle,status`,
-      { headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' } }
+    const data = await adminGraphql<{
+      products: {
+        nodes: Array<{
+          id: string;
+          title: string;
+          descriptionHtml: string;
+          vendor: string;
+          productType: string;
+          tags: string[];
+          handle: string;
+          status: string;
+          featuredMedia?: { preview?: { image?: { url?: string } } } | null;
+          variants: {
+            nodes: Array<{
+              price: string;
+              compareAtPrice?: string | null;
+            }>;
+          };
+        }>;
+      };
+    }>(
+      session.shop,
+      session.accessToken,
+      `#graphql
+        query ProductsForLandingPages {
+          products(first: 50) {
+            nodes {
+              id
+              title
+              descriptionHtml
+              vendor
+              productType
+              tags
+              handle
+              status
+              featuredMedia {
+                preview {
+                  image {
+                    url
+                  }
+                }
+              }
+              variants(first: 50) {
+                nodes {
+                  price
+                  compareAtPrice
+                }
+              }
+            }
+          }
+        }
+      `
     );
-    if (!response.ok) {
-      const err = await response.text();
-      if (response.status === 401) return res.status(401).json({ success: false, error: 'Invalid token. Reconnect your store.' });
-      throw new Error(`Shopify error: ${err}`);
-    }
-    const { products } = await response.json() as { products: any[] };
 
-    // Shape the data for the frontend
-    const shaped = products
-      .filter((p: any) => p.status === 'active' || !p.status)
+    const shaped = data.products.nodes
+      .filter((p) => p.status === 'ACTIVE' || !p.status)
       .map((p: any) => ({
-        id: p.id,
+        id: Number(String(p.id).split('/').pop()) || p.id,
         title: p.title,
-        description: (p.body_html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500),
+        description: (p.descriptionHtml || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500),
         vendor: p.vendor || '',
-        productType: p.product_type || '',
-        tags: typeof p.tags === 'string' ? p.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
-        price: p.variants?.[0]?.price || '0.00',
-        comparePrice: p.variants?.[0]?.compare_at_price || null,
-        image: p.images?.[0]?.src || null,
+        productType: p.productType || '',
+        tags: Array.isArray(p.tags) ? p.tags : [],
+        price: p.variants?.nodes?.[0]?.price || '0.00',
+        comparePrice: p.variants?.nodes?.[0]?.compareAtPrice || null,
+        image: p.featuredMedia?.preview?.image?.url || null,
         handle: p.handle,
-        variantCount: p.variants?.length || 1,
+        variantCount: p.variants?.nodes?.length || 1,
       }));
 
     res.json({ success: true, products: shaped });
@@ -245,7 +284,7 @@ app.get('/api/shopify/products', async (req, res) => {
 });
 
 // ── AI Generate Page from Product ─────────────────────────────────────────
-app.post('/api/ai/generate-from-product', async (req, res) => {
+app.post('/api/ai/generate-from-product', requireBilling, async (req, res) => {
   const { product } = req.body;
   if (!product?.title) return res.status(400).json({ success: false, error: 'product required' });
 
@@ -365,7 +404,7 @@ Rules:
 });
 
 // ── AI Full Page Generation (with real content) ───────────────────────────
-app.post('/api/ai/generate-page', async (req, res) => {
+app.post('/api/ai/generate-page', requireBilling, async (req, res) => {
   const { pageGoal } = req.body;
   if (!pageGoal?.trim()) {
     return res.status(400).json({ success: false, error: 'pageGoal is required' });
@@ -447,12 +486,13 @@ Rules:
 
 // ── Email Subscribe ───────────────────────────────────────────────────────
 app.post('/api/subscribe', (req, res) => {
-  const { email } = req.body;
+  const { email, shop } = req.body;
   if (!email || typeof email !== 'string' || !email.includes('@')) {
     return res.status(400).json({ success: false, error: 'Valid email required' });
   }
   try {
-    saveSubscriber(email.toLowerCase().trim());
+    const cleanShop = typeof shop === 'string' ? shop.replace(/^https?:\/\//, '').replace(/\/$/, '') : null;
+    saveSubscriber(email.toLowerCase().trim(), cleanShop);
     console.log(`✉️  New subscriber: ${email}`);
     res.json({ success: true });
   } catch (err: any) {
@@ -474,12 +514,13 @@ function saveContact(data: Record<string, any>) {
 }
 
 app.post('/api/contact', (req, res) => {
-  const { name, email, message } = req.body;
+  const { name, email, message, shop } = req.body;
   if (!email || !email.includes('@')) {
     return res.status(400).json({ success: false, error: 'Valid email required' });
   }
   try {
-    saveContact({ name: name || '', email: email.trim(), message: message || '' });
+    const cleanShop = typeof shop === 'string' ? shop.replace(/^https?:\/\//, '').replace(/\/$/, '') : null;
+    saveContact({ name: name || '', email: email.trim(), message: message || '', shop: cleanShop });
     console.log(`📬  Contact form: ${name || 'Unknown'} <${email}>`);
     res.json({ success: true });
   } catch (err: any) {
@@ -791,7 +832,7 @@ Respond with JSON:
 });
 
 // ── AI Polish Page (coherence rewrite) ───────────────────────────────────
-app.post('/api/ai/polish-page', async (req, res) => {
+app.post('/api/ai/polish-page', requireBilling, async (req, res) => {
   const { blocks, pageGoal, tone = 'professional' } = req.body;
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return res.status(400).json({ success: false, error: 'blocks required' });
@@ -1016,6 +1057,6 @@ app.get('*', (_req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\n🚀 PageGenie running on http://localhost:${PORT}`);
-  console.log(`🛍️  Install URL: http://localhost:${PORT}/api/auth?shop=YOUR-STORE.myshopify.com`);
+  console.log('Open/install PageGenie from Shopify admin or the Partner Dashboard test install flow.');
   console.log(`🤖  Model: claude-haiku-4-5-20251001\n`);
 });

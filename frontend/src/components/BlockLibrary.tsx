@@ -284,7 +284,7 @@ export default function BlockLibrary() {
       {/* Templates Panel */}
       {tab === 'templates' && (
         <div className="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-3">
-          <p className="text-xs text-slate-500 text-center">Pre-built pages — click to load instantly</p>
+          <p className="text-xs text-slate-500 text-center">Pre-built pages you can customize</p>
           {PAGE_TEMPLATES.map((tpl) => (
             <button
               key={tpl.name}
@@ -292,14 +292,14 @@ export default function BlockLibrary() {
               className="w-full text-left p-3 rounded-xl border border-slate-700 hover:border-indigo-500 hover:bg-indigo-950/30 transition-all group"
             >
               <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="text-xl">{tpl.emoji}</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-sm opacity-80">{tpl.emoji}</span>
                 <span className="text-sm font-semibold text-slate-200 group-hover:text-white">{tpl.name}</span>
               </div>
               <p className="text-xs text-slate-500">{tpl.blocks.length} sections</p>
               <div className="flex flex-wrap gap-1 mt-2">
                 {tpl.blocks.slice(0, 6).map((b, i) => {
                   const d = BLOCK_DEFS.find((x) => x.type === b.type);
-                  return d ? <span key={i} className="text-base" title={d.label}>{d.emoji}</span> : null;
+                  return d ? <span key={i} className="text-xs opacity-60" title={d.label}>{d.emoji}</span> : null;
                 })}
                 {tpl.blocks.length > 6 && <span className="text-xs text-slate-600 self-center">+{tpl.blocks.length - 6}</span>}
               </div>
@@ -399,7 +399,7 @@ export default function BlockLibrary() {
         <div className="flex gap-1 px-2 pt-2 pb-1 flex-wrap">
           <button
             onClick={() => setActiveCategory(null)}
-            className={`text-xs px-2 py-0.5 rounded-md transition-all ${!activeCategory ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+              className={`text-xs px-2 py-0.5 rounded-md transition-all ${!activeCategory ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
           >
             All
           </button>
@@ -426,7 +426,7 @@ export default function BlockLibrary() {
               onClick={() => handleAdd(def.type)}
               className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-700 text-left transition-all group border border-transparent hover:border-slate-600"
             >
-              <span className="text-xl flex-shrink-0">{def.emoji}</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900/70 text-sm flex-shrink-0 opacity-80 group-hover:opacity-100">{def.emoji}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-200 group-hover:text-white">{def.label}</p>
                 <p className="text-xs text-slate-500">{def.category}</p>

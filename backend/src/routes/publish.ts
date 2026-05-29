@@ -1,10 +1,20 @@
 import { Router, Request, Response } from 'express';
-import { getSessionForShop } from '../shopify';
+import { adminGraphql, getSessionForShop, getShopFromSessionToken } from '../shopify';
 
 const router = Router();
 
+function cleanShop(value: string): string {
+  return value.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
+function gidNumber(gid: string): string {
+  return gid.split('/').pop() || gid;
+}
+
 router.post('/', async (req: Request, res: Response) => {
-  const { shop, pageTitle, html } = req.body;
+  const tokenShop = getShopFromSessionToken(req);
+  const shop = tokenShop || cleanShop((req.body.shop as string) || '');
+  const { pageTitle, html } = req.body;
 
   if (!shop || !pageTitle || !html) {
     res.status(400).json({ success: false, error: 'Missing shop, pageTitle, or html' });
@@ -22,45 +32,62 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    // Create or update a page via Shopify REST Admin API
-    const response = await fetch(
-      `https://${session.shop}/admin/api/2024-01/pages.json`,
+    const data = await adminGraphql<{
+      pageCreate: {
+        page: { id: string; handle: string; title: string } | null;
+        userErrors: { field?: string[]; message: string }[];
+      };
+    }>(
+      session.shop,
+      session.accessToken,
+      `#graphql
+        mutation CreatePage($page: PageCreateInput!) {
+          pageCreate(page: $page) {
+            page {
+              id
+              title
+              handle
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `,
       {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': session.accessToken,
+        page: {
+          title: pageTitle,
+          body: html,
+          isPublished: true,
         },
-        body: JSON.stringify({
-          page: {
-            title: pageTitle,
-            body_html: html,
-            published: true,
-          },
-        }),
       }
     );
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Shopify API error: ${err}`);
+    const errors = data.pageCreate.userErrors;
+    if (errors.length || !data.pageCreate.page) {
+      throw new Error(errors.map((e) => e.message).join('; ') || 'Page was not created');
     }
 
-    const data = (await response.json()) as { page: { id: number; handle: string; title: string } };
-    const pageUrl = `https://${session.shop}/pages/${data.page.handle}`;
+    const page = data.pageCreate.page;
+    const pageUrl = `https://${session.shop}/pages/${page.handle}`;
+    const adminUrl = `https://${session.shop}/admin/pages/${gidNumber(page.id)}`;
 
-    console.log(`✅ Published page: ${pageUrl}`);
-    res.json({ success: true, page: data.page, url: pageUrl });
+    console.log(`Published page: ${pageUrl}`);
+    res.json({ success: true, page, url: pageUrl, adminUrl });
   } catch (err: any) {
     console.error('Publish error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// List pages published by this app for a shop
 router.get('/', async (req: Request, res: Response) => {
-  const shop = req.query.shop as string;
-  if (!shop) { res.status(400).json({ error: 'Missing shop' }); return; }
+  const tokenShop = getShopFromSessionToken(req);
+  const shop = tokenShop || cleanShop((req.query.shop as string) || '');
+  if (!shop) {
+    res.status(400).json({ error: 'Missing shop' });
+    return;
+  }
 
   const session = await getSessionForShop(shop);
   if (!session?.accessToken) {
@@ -68,12 +95,30 @@ router.get('/', async (req: Request, res: Response) => {
     return;
   }
 
-  const response = await fetch(
-    `https://${session.shop}/admin/api/2024-01/pages.json?limit=50`,
-    { headers: { 'X-Shopify-Access-Token': session.accessToken } }
-  );
-  const data = await response.json() as { pages: any[] };
-  res.json({ pages: data.pages || [] });
+  try {
+    const data = await adminGraphql<{
+      pages: { nodes: Array<{ id: string; title: string; handle: string; updatedAt: string }> };
+    }>(
+      session.shop,
+      session.accessToken,
+      `#graphql
+        query Pages {
+          pages(first: 50) {
+            nodes {
+              id
+              title
+              handle
+              updatedAt
+            }
+          }
+        }
+      `
+    );
+
+    res.json({ pages: data.pages.nodes || [] });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

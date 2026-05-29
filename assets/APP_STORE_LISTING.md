@@ -76,10 +76,10 @@ Whether you're launching a product, running a promotion, or testing a new offer 
 
 ### Why Merchants Love PageGenie
 
-- **10x faster** than traditional page builders
+- Build campaign pages faster than starting from a blank page
 - **No design skills needed** — AI does the heavy lifting
 - **Publish directly** to Shopify with one click — no copy-paste
-- **Real results** — conversion-optimized layouts built on proven frameworks
+- Conversion-focused layouts with sections for benefits, proof, FAQs, and calls to action
 
 ---
 
@@ -111,7 +111,7 @@ https://ai-page-builder-6h7l.onrender.com/api/auth/callback
 - Shop data erasure: https://ai-page-builder-6h7l.onrender.com/api/webhooks/shop/redact
 
 ## Pricing
-Free to install (uses your Anthropic API key for AI features, or use the built-in free tier)
+Free trial, then $19/month through Shopify Billing.
 
 ## Categories
 - Page Builders
