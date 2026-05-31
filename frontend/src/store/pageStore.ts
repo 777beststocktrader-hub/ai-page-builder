@@ -55,7 +55,7 @@ interface PageStore {
   deleteSnapshot: (id: string) => void;
 }
 
-const STORAGE_KEY = 'ai-pb-v1';
+const STORAGE_KEY = 'ai-pb-v2';
 
 function tryLoadSaved(): { page: Page; pageGoal: string; theme?: Theme } | null {
   try {

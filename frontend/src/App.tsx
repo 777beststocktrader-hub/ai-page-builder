@@ -63,7 +63,7 @@ function ShortcutsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-const STORAGE_KEY = 'ai-pb-v1';
+const STORAGE_KEY = 'ai-pb-v2';
 const SAVE_DEBOUNCE_MS = 800;
 
 function PreviewFrame() {
