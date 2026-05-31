@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -15,7 +15,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown, Monitor, Tablet, Smartphone, ShoppingBag, LayoutTemplate } from 'lucide-react';
+import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown, Monitor, Tablet, Smartphone, ShoppingBag, LayoutTemplate, Star, ShieldCheck } from 'lucide-react';
 import ProductPickerModal from './ProductPickerModal';
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
@@ -263,32 +263,43 @@ const QUICK_GOALS = [
 
 const HERO_DEMO_GOAL = 'Create a Shopify sales page for a premium handmade jewelry product. Make it feel polished, trustworthy, and easy to buy with a clear offer, benefits, social proof, FAQ, and shop now CTA.';
 
+const SAMPLE_PRODUCT_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700" viewBox="0 0 900 700">
+  <rect width="900" height="700" rx="48" fill="#f8fafc"/>
+  <rect x="130" y="90" width="640" height="520" rx="44" fill="#ffffff" stroke="#e2e8f0" stroke-width="4"/>
+  <circle cx="450" cy="310" r="126" fill="#eef2ff"/>
+  <circle cx="366" cy="302" r="34" fill="#f8fafc" stroke="#c7d2fe" stroke-width="8"/>
+  <circle cx="450" cy="252" r="42" fill="#ffffff" stroke="#a5b4fc" stroke-width="8"/>
+  <circle cx="534" cy="302" r="34" fill="#f8fafc" stroke="#c7d2fe" stroke-width="8"/>
+  <path d="M344 354c60 64 152 64 212 0" fill="none" stroke="#4f46e5" stroke-width="14" stroke-linecap="round"/>
+  <text x="450" y="500" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="800" fill="#0f172a">Pearl Bloom</text>
+  <text x="450" y="542" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#64748b">Jade Loom product</text>
+</svg>
+`)}`;
+
 const SAMPLE_PRODUCT = {
   brand: 'Jade Loom',
   name: 'Pearl Bloom Necklace',
   price: '$79',
-  imageUrl: 'https://images.unsplash.com/photo-1742137189543-38412344c2ca?auto=format&fit=crop&w=900&q=80',
-  photoCredit: 'Photo by pure julia on Unsplash',
-  sourceUrl: 'https://unsplash.com/photos/a-pearl-necklace-adorns-a-gray-fabric-DAStvFz1cZg',
+  imageUrl: SAMPLE_PRODUCT_IMAGE,
+  photoCredit: 'Demo product visual',
+  sourceUrl: '#',
 };
 
 const SAMPLE_PAGES = [
   {
     title: 'Product Launch',
     goal: 'Launch page for a new premium product with benefits, social proof, and a strong buy now CTA',
-    gradient: 'from-indigo-600 to-violet-600',
     sections: ['Hero', 'Benefits', 'Reviews', 'FAQ'],
   },
   {
     title: 'Sale Campaign',
     goal: 'Limited-time Shopify sale page with urgency, offer details, testimonials, and discount CTA',
-    gradient: 'from-rose-500 to-orange-500',
     sections: ['Offer', 'Countdown', 'Proof', 'CTA'],
   },
   {
     title: 'Premium Brand',
     goal: 'Luxury brand landing page for handmade jewelry with story, quality promise, reviews, and product CTA',
-    gradient: 'from-slate-800 to-slate-600',
     sections: ['Story', 'Craft', 'Gallery', 'Buy'],
   },
 ];
@@ -494,34 +505,167 @@ function getSectionData(type: string, pageTitle: string) {
   return {};
 }
 
+function makeWhiteSampleBlockData(type: string, data: Record<string, any>) {
+  if (type === 'navbar') {
+    return { ...data, bgColor: '#ffffff', sticky: 'solid' };
+  }
+  if (type === 'hero') {
+    return {
+      ...data,
+      variant: data.imageUrl ? 'split' : 'minimal',
+      bgFrom: '#ffffff',
+      bgTo: '#ffffff',
+    };
+  }
+  if (['stats', 'cta', 'footer', 'newsletter', 'content', 'steps', 'testimonial-single'].includes(type)) {
+    return { ...data, bgColor: '#ffffff' };
+  }
+  return data;
+}
+
+function getBuiltInSampleBlocks() {
+  return [
+    {
+      type: 'navbar',
+      data: {
+        brand: SAMPLE_PRODUCT.brand,
+        links: 'Benefits,Reviews,FAQ',
+        ctaText: 'Shop Now',
+        bgColor: '#ffffff',
+        sticky: 'solid',
+      },
+    },
+    {
+      type: 'hero',
+      data: {
+        variant: 'split',
+        eyebrow: 'Handmade jewelry drop',
+        headline: 'A pearl necklace made for everyday glow',
+        subheadline: 'Hand-finished freshwater pearls with a soft shine, gift-ready packaging, easy returns, and free shipping this week.',
+        primaryBtn: `Buy Now - ${SAMPLE_PRODUCT.price}`,
+        primaryBtnHref: '#',
+        secondaryBtn: 'Read Reviews',
+        imageUrl: SAMPLE_PRODUCT.imageUrl,
+        bgFrom: '#ffffff',
+        bgTo: '#ffffff',
+      },
+    },
+    {
+      type: 'features',
+      data: {
+        variant: 'grid',
+        title: 'Why shoppers choose Pearl Bloom',
+        subtitle: 'A simple product story that makes the buying decision feel clear, premium, and low-risk.',
+        features: [
+          { icon: '01', title: 'Freshwater pearls', description: 'Soft natural shine that feels refined without looking too formal.' },
+          { icon: '02', title: 'Gift-ready packaging', description: 'Arrives ready to give, with a polished unboxing moment.' },
+          { icon: '03', title: 'Everyday styling', description: 'Pairs easily with casual outfits, workwear, and special occasions.' },
+          { icon: '04', title: 'Limited batch', description: 'Small-run details help the piece feel personal and considered.' },
+          { icon: '05', title: 'Free shipping', description: 'A clear offer reduces hesitation before checkout.' },
+          { icon: '06', title: 'Easy returns', description: 'A 30-day return promise gives first-time buyers confidence.' },
+        ],
+      },
+    },
+    {
+      type: 'stats',
+      data: {
+        title: 'Built for buyer confidence',
+        bgColor: '#ffffff',
+        stats: [
+          { value: '4.9/5', label: 'Average rating' },
+          { value: '30 days', label: 'Easy returns' },
+          { value: 'Free', label: 'Shipping this week' },
+          { value: '24h', label: 'Fast support' },
+        ],
+      },
+    },
+    {
+      type: 'testimonials',
+      data: {
+        title: 'What customers notice first',
+        testimonials: [
+          { quote: 'It looked delicate online and even better in person. The packaging made it feel special.', name: 'Avery M.', role: 'Verified buyer', avatar: 'AM', avatarBg: '#4f46e5' },
+          { quote: 'I bought it as a gift and did not need to wrap anything extra. Beautiful and easy.', name: 'Jordan P.', role: 'Gift shopper', avatar: 'JP', avatarBg: '#0891b2' },
+          { quote: 'The page answered my questions about shipping and returns, so checkout felt simple.', name: 'Mina R.', role: 'First-time customer', avatar: 'MR', avatarBg: '#059669' },
+        ],
+      },
+    },
+    {
+      type: 'faq',
+      data: {
+        title: 'Questions before you order',
+        items: [
+          { question: 'How fast will it ship?', answer: 'Orders are prepared quickly, and free shipping is available during this sample offer.' },
+          { question: 'Is it good for gifting?', answer: 'Yes. Pearl Bloom arrives in gift-ready packaging, so it is easy to send or give in person.' },
+          { question: 'Can I return it?', answer: 'Yes. The page includes a simple 30-day return promise to reduce buyer hesitation.' },
+          { question: 'What makes it feel premium?', answer: 'The product story highlights materials, finish, packaging, reviews, and clear checkout details.' },
+        ],
+      },
+    },
+    {
+      type: 'cta',
+      data: {
+        headline: 'Ready to make the page shoppable?',
+        subtext: 'Use this sample as a starting point, then edit the words, offer, images, and sections for your real Shopify product.',
+        primaryBtn: 'Customize This Page',
+        secondaryBtn: 'See Details',
+        bgColor: '#ffffff',
+      },
+    },
+    {
+      type: 'footer',
+      data: {
+        brand: SAMPLE_PRODUCT.brand,
+        tagline: 'Handmade jewelry pages built with PageGenie.',
+        copyright: '(c) 2026 Jade Loom. All rights reserved.',
+        links: 'Shop,Shipping,Returns,Contact',
+        bgColor: '#ffffff',
+      },
+    },
+  ].map((block) => ({ ...block, data: makeWhiteSampleBlockData(block.type, block.data) }));
+}
+
+function addBuiltInSamplePage(
+  addBlock: (type: string, data: Record<string, any>) => void,
+  setPageGoal: (goal: string) => void,
+  setPageTitle: (title: string) => void,
+  goal = HERO_DEMO_GOAL,
+  title = `${SAMPLE_PRODUCT.name} Sample Page`,
+) {
+  setPageGoal(goal);
+  getBuiltInSampleBlocks().forEach((block) => addBlock(block.type, block.data));
+  setPageTitle(title);
+  toast.success('Sample page loaded');
+}
+
 function AiSampleLandingPage({ generating, onGenerate }: { generating: boolean; onGenerate: () => void }) {
   return (
-    <div className="mb-6 overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-2xl shadow-indigo-100/70">
+    <div className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70">
       <div className="grid lg:grid-cols-[0.72fr_1.28fr]">
-        <div className="bg-slate-900 p-5 text-white">
-          <p className="text-xs font-black uppercase tracking-wider text-indigo-300">AI sample page</p>
+        <div className="border-b border-slate-100 bg-white p-5 text-slate-900 lg:border-b-0 lg:border-r">
+          <p className="text-xs font-black uppercase tracking-wider text-indigo-600">AI sample page</p>
           <h3 className="mt-2 text-2xl font-black leading-tight">Show shoppers what PageGenie can create</h3>
-          <p className="mt-3 text-sm leading-6 text-slate-300">
+          <p className="mt-3 text-sm leading-6 text-slate-500">
             A strong sample helps people trust the app before they try it. This preview shows the kind of landing page AI can build from one product idea.
           </p>
           <button
             onClick={onGenerate}
             disabled={generating}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-950/30 transition-all hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {generating ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
             {generating ? 'Building sample...' : 'Generate a page like this'}
           </button>
           <div className="mt-4 grid grid-cols-3 gap-2">
             {['Hero', 'Proof', 'CTA'].map((item) => (
-              <div key={item} className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-center text-xs font-bold text-slate-200">
+              <div key={item} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-bold text-slate-600">
                 {item}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4">
+        <div className="bg-white p-4">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
               <div className="text-sm font-black text-slate-900">{SAMPLE_PRODUCT.brand}</div>
@@ -560,7 +704,7 @@ function AiSampleLandingPage({ generating, onGenerate }: { generating: boolean; 
                   ))}
                 </div>
               </div>
-              <div className="bg-indigo-50 p-5">
+              <div className="border-t border-slate-100 bg-white p-5 md:border-l md:border-t-0">
                 <div className="rounded-3xl border border-white bg-white p-3 shadow-lg">
                   <div className="aspect-square overflow-hidden rounded-2xl bg-slate-100">
                     <img
@@ -592,7 +736,7 @@ function AiSampleLandingPage({ generating, onGenerate }: { generating: boolean; 
                 </div>
               ))}
             </div>
-            <div className="border-t border-slate-100 bg-slate-50 p-5">
+            <div className="border-t border-slate-100 bg-white p-5">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-xs font-black uppercase tracking-wider text-slate-500">Customer reviews</p>
                 <p className="text-xs font-black text-green-600">4.9/5 rating</p>
@@ -648,23 +792,23 @@ function ReviewShowcase() {
 
 function PricingShowcase({ onTryDemo }: { onTryDemo: () => void }) {
   return (
-    <div className="mb-6 overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-2xl shadow-indigo-100/60">
+    <div className="mb-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70">
       <div className="grid lg:grid-cols-[0.75fr_1.25fr]">
-        <div className="bg-indigo-600 p-6 text-white">
-          <p className="text-xs font-black uppercase tracking-wider text-indigo-100">Simple pricing</p>
+        <div className="border-b border-slate-100 bg-white p-6 text-slate-900 lg:border-b-0 lg:border-r">
+          <p className="text-xs font-black uppercase tracking-wider text-indigo-600">Simple pricing</p>
           <h3 className="mt-2 text-2xl font-black leading-tight">Try it free, then keep building for $19/month</h3>
-          <p className="mt-3 text-sm leading-6 text-indigo-100">
+          <p className="mt-3 text-sm leading-6 text-slate-500">
             Clear pricing helps shoppers understand the value before they commit. PageGenie gives merchants time to try the AI builder first.
           </p>
           <button
             onClick={onTryDemo}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-indigo-700 shadow-lg transition-all hover:bg-indigo-50"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-500"
           >
             <Zap size={15} />
             Try the demo page
           </button>
         </div>
-        <div className="grid gap-4 bg-slate-50 p-5 md:grid-cols-2">
+        <div className="grid gap-4 bg-white p-5 md:grid-cols-2">
           {APP_PRICING_PLANS.map((plan) => (
             <div
               key={plan.name}
@@ -715,6 +859,208 @@ function PricingShowcase({ onTryDemo }: { onTryDemo: () => void }) {
   );
 }
 
+function DashboardStart({
+  generating,
+  goal,
+  setGoal,
+  inputRef,
+  onChooseProduct,
+  onTryDemo,
+  onGenerate,
+}: {
+  generating: boolean;
+  goal: string;
+  setGoal: (goal: string) => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+  onChooseProduct: () => void;
+  onTryDemo: () => void;
+  onGenerate: (customGoal?: string) => void;
+}) {
+  const stats = [
+    { icon: <LayoutTemplate size={20} />, label: 'Product pages', value: '0', detail: 'in workspace' },
+    { icon: <Sparkles size={20} />, label: 'AI sections', value: '9+', detail: 'per page' },
+    { icon: <Star size={20} fill="currentColor" />, label: 'Reviews', value: '15', detail: 'per page' },
+    { icon: <ShieldCheck size={20} />, label: 'Publish flow', value: 'Ready', detail: 'preview' },
+  ];
+
+  const tools = [
+    {
+      title: 'Create Product Page',
+      body: 'Choose a Shopify product and generate the full landing page.',
+      action: 'Create page',
+      icon: <ShoppingBag size={21} />,
+      primary: true,
+      onClick: onChooseProduct,
+    },
+    {
+      title: 'Try Demo Page',
+      body: 'Load a finished sample page so you can see what the app creates.',
+      action: 'Open demo',
+      icon: <Zap size={21} />,
+      primary: false,
+      onClick: onTryDemo,
+    },
+    {
+      title: 'Custom AI Page',
+      body: 'Describe a product or offer when you do not have Shopify data yet.',
+      action: 'Use prompt',
+      icon: <Wand2 size={21} />,
+      primary: false,
+      onClick: () => inputRef.current?.focus(),
+    },
+  ];
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-slate-100 p-6 cursor-default">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider text-indigo-600">Welcome to PageGenie</p>
+            <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-950">Build your next product page</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              Pick one Shopify product. PageGenie turns it into a clean landing page with photos, benefits, reviews, FAQ, and buy buttons.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              onClick={onTryDemo}
+              disabled={generating}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm hover:border-indigo-200 hover:bg-indigo-50 disabled:opacity-60"
+            >
+              {generating ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
+              Watch Demo
+            </button>
+            <button
+              onClick={onChooseProduct}
+              disabled={generating}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-300 hover:bg-slate-800 disabled:opacity-60"
+            >
+              <Sparkles size={15} />
+              Create Product Page
+            </button>
+          </div>
+        </div>
+
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <h3 className="text-base font-black text-slate-950">Statistics</h3>
+            <p className="text-sm text-slate-500">Your page-building workspace</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="mb-3 flex items-center justify-between text-slate-400">
+                  {stat.icon}
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                </div>
+                <p className="text-sm font-black text-slate-700">{stat.label}</p>
+                <div className="mt-1 flex items-end gap-2">
+                  <span className="text-3xl font-black leading-none text-slate-950">{stat.value}</span>
+                  <span className="pb-0.5 text-xs font-bold text-slate-400">{stat.detail}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-base font-black text-slate-950">Helpful tools</h3>
+              <p className="text-sm text-slate-500">Start with the fastest option.</p>
+            </div>
+            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">Recommended: Create Product Page</span>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-3">
+            {tools.map((tool) => (
+              <button
+                key={tool.title}
+                onClick={tool.onClick}
+                disabled={generating}
+                className={`group min-h-[190px] rounded-2xl border p-5 text-left transition-all disabled:opacity-60 ${
+                  tool.primary
+                    ? 'border-slate-900 bg-slate-950 text-white shadow-xl shadow-slate-300'
+                    : 'border-slate-200 bg-white text-slate-950 hover:border-indigo-200 hover:bg-indigo-50'
+                }`}
+              >
+                <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-xl ${
+                  tool.primary ? 'bg-cyan-400 text-slate-950' : 'bg-indigo-50 text-indigo-600'
+                }`}>
+                  {tool.icon}
+                </div>
+                <h4 className={`text-lg font-black ${tool.primary ? 'text-white' : 'text-slate-950'}`}>{tool.title}</h4>
+                <p className={`mt-2 min-h-[44px] text-sm leading-6 ${tool.primary ? 'text-slate-300' : 'text-slate-500'}`}>{tool.body}</p>
+                <div className={`mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black ${
+                  tool.primary ? 'bg-white text-slate-950' : 'bg-slate-950 text-white'
+                }`}>
+                  {tool.action}
+                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6 grid gap-4 lg:grid-cols-[1fr_0.72fr]">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-black text-slate-950">Product pages</h3>
+                <p className="text-sm text-slate-500">Create, preview, and manage generated pages.</p>
+              </div>
+              <button onClick={onChooseProduct} className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-500">
+                New page
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-[1fr_120px_120px] bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wider text-slate-400">
+                <span>Product</span>
+                <span>Status</span>
+                <span>Action</span>
+              </div>
+              <div className="grid grid-cols-[1fr_120px_120px] items-center px-4 py-4 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-black text-slate-800">2-in-1 Charging Cable Page</p>
+                  <p className="mt-0.5 text-xs text-slate-500">High-converting preview page</p>
+                </div>
+                <span className="w-fit rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">Ready</span>
+                <a href="/share/agtej00v8" className="text-xs font-black text-indigo-600 hover:text-indigo-500">Open</a>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="text-base font-black text-slate-950">Custom page prompt</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-500">Use this only when you want to test without choosing a Shopify product.</p>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-1">
+              <input
+                ref={inputRef}
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !generating) onGenerate(); }}
+                placeholder="Example: landing page for a charging cable"
+                className="w-full rounded-lg px-3 py-3 text-sm text-slate-700 outline-none placeholder-slate-400"
+                disabled={generating}
+              />
+              <button
+                onClick={() => onGenerate()}
+                disabled={generating}
+                className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-3 text-sm font-black text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {generating ? (
+                  <><Loader2 size={14} className="animate-spin" /> Building...</>
+                ) : (
+                  <><Wand2 size={14} /> Generate Custom Page</>
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function EmptyState() {
   const { addBlock, setPageGoal, setPageTitle } = usePageStore();
   const [goal, setGoal] = useState('');
@@ -730,6 +1076,11 @@ function EmptyState() {
   const selectedCampaignItem = CAMPAIGN_GOALS.find((item) => item.id === selectedCampaign) || CAMPAIGN_GOALS[0];
   const selectedOfferItem = OFFER_PRESETS.find((item) => item.id === selectedOffer) || OFFER_PRESETS[0];
   const wizardGoal = `${selectedCampaignItem.goal}. Offer angle: ${selectedOfferItem.goal}.`;
+  const handleLoadSamplePage = (goal = HERO_DEMO_GOAL, title = `${SAMPLE_PRODUCT.name} Sample Page`) => {
+    setGenerating(true);
+    addBuiltInSamplePage(addBlock, setPageGoal, setPageTitle, goal, title);
+    setGenerating(false);
+  };
 
   const handleGenerate = async (customGoal?: string) => {
     const finalGoal = customGoal || goal;
@@ -741,7 +1092,7 @@ function EmptyState() {
       if (blocks.length === 0) throw new Error('No blocks generated');
       for (const b of blocks) {
         const def = BLOCK_DEFS.find((d) => d.type === b.type);
-        if (def) addBlock(b.type, { ...def.defaultData, ...b.data });
+        if (def) addBlock(b.type, makeWhiteSampleBlockData(b.type, { ...def.defaultData, ...b.data }));
       }
       if (tagline) setPageTitle(tagline);
       toast.success(`Page generated with ${blocks.length} sections! ✨`);
@@ -755,123 +1106,246 @@ function EmptyState() {
   return (
     <>
       {showProductPicker && <ProductPickerModal onClose={() => setShowProductPicker(false)} />}
-      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 to-indigo-50 cursor-default p-8 overflow-y-auto">
-        <div className="w-full max-w-5xl">
+      <DashboardStart
+        generating={generating}
+        goal={goal}
+        setGoal={setGoal}
+        inputRef={inputRef}
+        onChooseProduct={() => setShowProductPicker(true)}
+        onTryDemo={() => { setGoal(HERO_DEMO_GOAL); handleLoadSamplePage(); }}
+        onGenerate={handleGenerate}
+      />
+    </>
+  );
+
+  return (
+    <>
+      {showProductPicker && <ProductPickerModal onClose={() => setShowProductPicker(false)} />}
+      <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_left,#e0f2fe_0,#f8fafc_34%,#eef2ff_100%)] p-6 cursor-default">
+        <div className="mx-auto w-full max-w-6xl">
           {/* Header */}
-          <div className="grid lg:grid-cols-[1.02fr_0.98fr] gap-8 items-center mb-8">
-            <div className="text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-indigo-100 text-xs font-semibold text-indigo-700 shadow-sm mb-4">
-                <Sparkles size={13} />
-                For Shopify stores ready to launch faster
+          <section className="mb-6 overflow-hidden rounded-3xl border border-white/70 bg-slate-950 text-white shadow-2xl shadow-indigo-200/70">
+            <div className="grid lg:grid-cols-[1.02fr_0.98fr]">
+              <div className="p-6 sm:p-8 lg:p-10">
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-white/8 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-100">
+                  <Sparkles size={13} />
+                  AI Shopify landing pages
+                </div>
+                <h2 className="max-w-2xl text-4xl font-black leading-[1.02] tracking-tight text-white sm:text-5xl">
+                  Turn one Shopify product into a page shoppers want to buy from.
+                </h2>
+                <p className="mt-4 max-w-xl text-base leading-7 text-slate-300">
+                  Choose a product, add reviews if you have them, and PageGenie builds a polished sales page with product photos, benefits, proof, FAQ, and buying buttons.
+                </p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    onClick={() => setShowProductPicker(true)}
+                    disabled={generating}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-black text-slate-950 shadow-lg shadow-cyan-950/20 transition-all hover:bg-cyan-300 disabled:opacity-60"
+                  >
+                    <ShoppingBag size={15} />
+                    Choose Product from Shopify
+                  </button>
+                  <button
+                    onClick={() => { setGoal(HERO_DEMO_GOAL); handleLoadSamplePage(); }}
+                    disabled={generating}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition-all hover:bg-white/15 disabled:opacity-60"
+                  >
+                    {generating ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
+                    Try Demo Product
+                  </button>
+                </div>
+                <div className="mt-7 grid gap-2 sm:grid-cols-3">
+                  {[
+                    ['1 product', 'AI page source'],
+                    ['15 reviews', 'Proof section ready'],
+                    ['$19/mo', 'Simple app pricing'],
+                  ].map(([title, detail]) => (
+                    <div key={title} className="rounded-xl border border-white/10 bg-white/8 p-3">
+                      <p className="text-sm font-black text-white">{title}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-slate-400">{detail}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <h2 className="text-5xl font-black text-slate-900 mb-4 leading-[1.02] tracking-tight">
-                Create a sales page people actually want to click
-              </h2>
-              <p className="text-slate-600 text-base leading-7 max-w-xl">
-                Start with a product, an offer, or one sentence. PageGenie turns it into a polished Shopify landing page with the sections shoppers expect before they buy.
+              <div className="border-t border-white/10 bg-white p-5 text-slate-950 lg:border-l lg:border-t-0 lg:p-7">
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/10">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">AI page ready</span>
+                  </div>
+                  <div className="grid gap-0 md:grid-cols-[1fr_170px]">
+                    <div className="p-5">
+                      <div className="mb-3 flex items-center gap-2 text-yellow-400">
+                        {[1, 2, 3, 4, 5].map((star) => <Star key={star} size={14} fill="currentColor" />)}
+                        <span className="text-xs font-black text-slate-500">4.9/5 from 700+ reviews</span>
+                      </div>
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-indigo-600">Generated from Shopify</p>
+                      <h3 className="text-3xl font-black leading-tight tracking-tight text-slate-950">A product page that explains why to buy now.</h3>
+                      <p className="mt-3 text-sm leading-6 text-slate-500">Hero, product images, benefits, comparison, reviews, FAQ, and final CTA are written together.</p>
+                      <div className="mt-5 flex gap-2">
+                        <div className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white">Shop the product</div>
+                        <div className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-700">See reviews</div>
+                      </div>
+                    </div>
+                    <div className="border-t border-slate-100 bg-slate-50 p-4 md:border-l md:border-t-0">
+                      <div className="overflow-hidden rounded-2xl border border-white bg-white p-3 shadow-lg">
+                        <img src={SAMPLE_PRODUCT.imageUrl} alt={SAMPLE_PRODUCT.name} className="aspect-square w-full rounded-xl object-cover" />
+                        <p className="mt-3 text-xs font-black text-slate-900">{SAMPLE_PRODUCT.name}</p>
+                        <div className="mt-2 flex items-center justify-between">
+                          <p className="text-xs font-black text-emerald-600">{SAMPLE_PRODUCT.price}</p>
+                          <ShieldCheck size={15} className="text-emerald-500" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid border-t border-slate-100 sm:grid-cols-3">
+                    {[
+                      ['Product data', 'title, price, image'],
+                      ['Sales copy', 'benefits and CTA'],
+                      ['Trust proof', 'reviews and FAQ'],
+                    ].map(([title, detail]) => (
+                      <div key={title} className="border-b border-slate-100 p-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+                        <p className="text-sm font-black text-slate-900">{title}</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">{detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="mb-6 grid gap-3 md:grid-cols-3">
+            {[
+              ['Choose product', 'Open your Shopify catalog and pick the item you want to sell.'],
+              ['Generate page', 'AI builds the sales story, sections, proof, and CTA.'],
+              ['Preview and publish', 'Edit anything, test mobile, then publish when ready.'],
+            ].map(([title, body], index) => (
+              <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-sm font-black text-indigo-600">{index + 1}</div>
+                <p className="text-sm font-black text-slate-950">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{body}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Build from Product — prominent if Shopify connected */}
+          <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_0.85fr]">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/60">
+              <p className="text-xs font-black uppercase tracking-wider text-indigo-600">Start here</p>
+              <h3 className="mt-1 text-xl font-black text-slate-950">Most users should click one button.</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Pick a Shopify product and PageGenie will build the landing page from the real product title, price, photos, and description.
               </p>
-              <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
                 <button
-                  onClick={() => { setGoal(HERO_DEMO_GOAL); handleGenerate(HERO_DEMO_GOAL); }}
+                  onClick={() => setShowProductPicker(true)}
                   disabled={generating}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-sm font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-500 disabled:opacity-60"
+                >
+                  <ShoppingBag size={16} />
+                  Choose Product
+                </button>
+                <button
+                  onClick={() => { setGoal(HERO_DEMO_GOAL); handleLoadSamplePage(); }}
+                  disabled={generating}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 transition-all hover:border-indigo-200 hover:bg-indigo-50 disabled:opacity-60"
                 >
                   {generating ? <Loader2 size={15} className="animate-spin" /> : <Zap size={15} />}
-                  Try a demo page
-                </button>
-                <button
-                  onClick={() => hasShopify ? setShowProductPicker(true) : inputRef.current?.focus()}
-                  disabled={generating}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white hover:bg-slate-50 disabled:opacity-60 text-slate-800 text-sm font-bold rounded-xl border border-slate-200 shadow-sm transition-all"
-                >
-                  <ShoppingBag size={15} className="text-green-500" />
-                  {hasShopify ? 'Use my products' : 'Write my own idea'}
+                  Try Demo
                 </button>
               </div>
-              <div className="mt-5 grid sm:grid-cols-3 gap-2">
+              <div className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50">
                 {[
-                  ['No blank page', 'Hero, proof, FAQ, CTA'],
-                  ['Offer-first', 'Sale, bundle, launch'],
-                  ['Ready to polish', 'Score and improve'],
-                ].map(([title, detail]) => (
-                  <div key={title} className="rounded-xl bg-white/80 border border-slate-200 p-3 shadow-sm">
-                    <p className="text-sm font-bold text-slate-800">{title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{detail}</p>
+                  ['1. Choose product', 'Select the product you want to sell.'],
+                  ['2. Add reviews', 'Paste English reviews only if you have them.'],
+                  ['3. Generate page', 'AI creates sections you can edit and publish.'],
+                ].map(([title, body]) => (
+                  <div key={title} className="p-3">
+                    <p className="text-sm font-black text-slate-800">{title}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{body}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="hidden lg:block">
-              <div className="relative">
-                <div className="absolute -left-5 top-10 rounded-2xl bg-white border border-green-100 shadow-xl px-4 py-3 z-10">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-green-600">Conversion score</p>
-                  <p className="text-3xl font-black text-slate-900 leading-none mt-1">92</p>
-                </div>
-                <div className="absolute -right-4 bottom-8 rounded-2xl bg-slate-900 text-white shadow-xl px-4 py-3 z-10">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-300">Generated</p>
-                  <p className="text-sm font-bold mt-1">Hero + proof + CTA</p>
-                </div>
-              <div className="rounded-3xl bg-white border border-slate-200 shadow-2xl shadow-indigo-200/50 p-4 rotate-1">
-                <div className="rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
-                  <div className="h-9 bg-slate-900 flex items-center gap-1.5 px-3">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                  </div>
-                  <div className="p-5 bg-gradient-to-br from-white to-indigo-50">
-                    <div className="grid grid-cols-[1fr_120px] gap-4 items-center">
-                      <div>
-                        <div className="inline-flex rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-[10px] font-black uppercase tracking-wider mb-3">New drop</div>
-                        <div className="w-full h-8 rounded bg-slate-900 mb-2" />
-                        <div className="w-5/6 h-8 rounded bg-slate-900 mb-4" />
-                        <div className="space-y-2 mb-5">
-                          <div className="w-full h-2 rounded bg-slate-200" />
-                          <div className="w-5/6 h-2 rounded bg-slate-200" />
-                          <div className="w-2/3 h-2 rounded bg-slate-200" />
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="h-9 w-28 rounded-lg bg-indigo-600" />
-                          <div className="h-9 w-24 rounded-lg bg-white border border-slate-200" />
-                        </div>
-                      </div>
-                      <div className="rounded-2xl bg-white border border-slate-200 shadow-lg p-3">
-                        <div className="aspect-square overflow-hidden rounded-xl bg-slate-100 mb-3">
-                          <img
-                            src={SAMPLE_PRODUCT.imageUrl}
-                            alt={SAMPLE_PRODUCT.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <p className="mb-1 text-[10px] font-black text-slate-800">{SAMPLE_PRODUCT.name}</p>
-                        <p className="mb-3 text-[10px] font-bold text-green-600">{SAMPLE_PRODUCT.price}</p>
-                        <div className="h-7 rounded-lg bg-green-500" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 mt-5">
-                      {['Benefit', 'Review', 'FAQ'].map((item) => (
-                        <div key={item} className="rounded-xl bg-white/90 border border-slate-200 p-3">
-                          <div className="h-6 w-6 rounded-lg bg-indigo-100 mb-2" />
-                          <p className="text-[10px] font-black text-slate-700">{item}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/60">
+              <p className="text-xs font-black uppercase tracking-wider text-slate-400">Optional</p>
+              <h3 className="mt-1 text-lg font-black text-slate-950">Describe a page instead</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Use this only when you are testing an idea without a Shopify product.
+              </p>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-1">
+                <input
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !generating) handleGenerate(); }}
+                  placeholder="Example: product launch page for a charging cable"
+                  className="w-full rounded-lg px-3 py-3 text-sm text-slate-700 outline-none placeholder-slate-400"
+                  disabled={generating}
+                />
+                <button
+                  onClick={() => handleGenerate()}
+                  disabled={generating}
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-3 text-sm font-black text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {generating ? (
+                    <><Loader2 size={14} className="animate-spin" /> Building...</>
+                  ) : (
+                    <><Wand2 size={14} /> Generate Custom Page</>
+                  )}
+                </button>
               </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {QUICK_GOALS.slice(0, 4).map((q) => (
+                  <button
+                    key={q.label}
+                    onClick={() => { setGoal(q.goal); handleGenerate(q.goal); }}
+                    disabled={generating}
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-50"
+                  >
+                    {q.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Build from Product — prominent if Shopify connected */}
+          <details className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+            <summary className="cursor-pointer text-sm font-black text-slate-700">Advanced: add sections manually</summary>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {['hero', 'features', 'testimonials', 'cta', 'faq'].map((type) => {
+                const def = BLOCK_DEFS.find((b) => b.type === type);
+                if (!def) return null;
+                return (
+                  <button
+                    key={def.type}
+                    onClick={() => { addBlock(def.type, { ...def.defaultData }); toast.success(`${def.label} added`); }}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 transition-all hover:border-indigo-300 hover:text-indigo-700"
+                  >
+                    <span className="opacity-70">{def.emoji}</span>
+                    <span className="font-medium">{def.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+
+          <div className="hidden" aria-hidden="true">
           <AiSampleLandingPage
             generating={generating}
-            onGenerate={() => { setGoal(HERO_DEMO_GOAL); handleGenerate(HERO_DEMO_GOAL); }}
+            onGenerate={() => { setGoal(HERO_DEMO_GOAL); handleLoadSamplePage(); }}
           />
 
           <ReviewShowcase />
 
           <PricingShowcase
-            onTryDemo={() => { setGoal(HERO_DEMO_GOAL); handleGenerate(HERO_DEMO_GOAL); }}
+            onTryDemo={() => { setGoal(HERO_DEMO_GOAL); handleLoadSamplePage(); }}
           />
 
           {hasShopify && (
@@ -1032,13 +1506,18 @@ function EmptyState() {
                 {SAMPLE_PAGES.map((sample) => (
                   <button
                     key={sample.title}
-                    onClick={() => { setGoal(sample.goal); handleGenerate(sample.goal); }}
+                    onClick={() => { setGoal(sample.goal); handleLoadSamplePage(sample.goal, `${sample.title} Sample Page`); }}
                     disabled={generating}
                     className="group text-left rounded-xl overflow-hidden border border-slate-200 bg-white hover:border-indigo-300 hover:shadow-md transition-all disabled:opacity-50"
                   >
-                    <div className={`h-20 bg-gradient-to-br ${sample.gradient} p-3`}>
-                      <div className="w-16 h-2 rounded-full bg-white/70 mb-2" />
-                      <div className="w-24 h-3 rounded-full bg-white/90" />
+                    <div className="h-20 border-b border-slate-100 bg-white p-3">
+                      <div className="mb-3 flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-indigo-100" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-green-100" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+                      </div>
+                      <div className="w-16 h-2 rounded-full bg-slate-200 mb-2" />
+                      <div className="w-24 h-3 rounded-full bg-slate-300" />
                     </div>
                     <div className="p-3">
                       <p className="text-sm font-bold text-slate-800 group-hover:text-indigo-700">{sample.title}</p>
@@ -1055,22 +1534,21 @@ function EmptyState() {
               </div>
             </div>
 
-            <div className="bg-slate-900 text-white rounded-2xl shadow-xl shadow-indigo-200/50 p-5 overflow-hidden relative">
-              <div className="absolute -right-10 -top-10 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl" />
-              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-3">Before / after</p>
+            <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/70 p-5 overflow-hidden relative">
+              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-3">Before / after</p>
               <div className="grid grid-cols-2 gap-3 relative">
-                <div className="rounded-xl bg-slate-800 border border-slate-700 p-3">
-                  <p className="text-xs font-semibold text-slate-400 mb-3">Product page</p>
-                  <div className="h-20 rounded-lg bg-slate-700 mb-3" />
+                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                  <p className="text-xs font-semibold text-slate-500 mb-3">Product page</p>
+                  <div className="h-20 rounded-lg bg-slate-200 mb-3" />
                   <div className="space-y-2">
-                    <div className="h-2 rounded bg-slate-600" />
-                    <div className="h-2 rounded bg-slate-700 w-4/5" />
-                    <div className="h-2 rounded bg-slate-700 w-2/3" />
+                    <div className="h-2 rounded bg-slate-300" />
+                    <div className="h-2 rounded bg-slate-200 w-4/5" />
+                    <div className="h-2 rounded bg-slate-200 w-2/3" />
                   </div>
                 </div>
                 <div className="rounded-xl bg-white text-slate-900 border border-indigo-200 p-3 shadow-lg">
                   <p className="text-xs font-semibold text-indigo-600 mb-3">PageGenie page</p>
-                  <div className="h-6 rounded bg-slate-900 mb-2" />
+                  <div className="h-6 rounded bg-slate-200 mb-2" />
                   <div className="h-3 rounded bg-indigo-200 mb-3 w-4/5" />
                   <div className="grid grid-cols-3 gap-1.5 mb-3">
                     <div className="h-8 rounded bg-indigo-50 border border-indigo-100" />
@@ -1080,10 +1558,11 @@ function EmptyState() {
                   <div className="h-8 rounded-lg bg-indigo-600" />
                 </div>
               </div>
-              <p className="relative text-xs text-slate-300 mt-4">
+              <p className="relative text-xs text-slate-500 mt-4">
                 Go from a basic product listing to a campaign-ready page with offer, benefits, proof, and CTA.
               </p>
             </div>
+          </div>
           </div>
         </div>
       </div>
@@ -1104,11 +1583,25 @@ export default function Canvas() {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
-  const [polishTone, setPolishTone] = useState<'marketing' | 'professional' | 'casual' | 'playful'>('marketing');
-  const shopParam = new URLSearchParams(window.location.search).get('shop');
-  const savedShop = getShopifyCredentials()?.shop;
-  const hasShopify = !!(shopParam || savedShop);
+  const [whiteSampleApplied, setWhiteSampleApplied] = useState(false);
 
+  useEffect(() => {
+    if (whiteSampleApplied || page.blocks.length === 0) return;
+    const sampleContext = `${page.title} ${pageGoal}`.toLowerCase();
+    const isSamplePage = /demo|sample|shopify|product|launch|sale|collection|lead capture/.test(sampleContext);
+    if (!isSamplePage) return;
+
+    let changed = false;
+    page.blocks.forEach((block) => {
+      const nextData = makeWhiteSampleBlockData(block.type, block.data || {});
+      if (JSON.stringify(nextData) !== JSON.stringify(block.data || {})) {
+        updateBlock(block.id, nextData);
+        changed = true;
+      }
+    });
+    if (changed || isSamplePage) setWhiteSampleApplied(true);
+  }, [page.blocks, page.title, pageGoal, updateBlock, whiteSampleApplied]);
+  const [polishTone, setPolishTone] = useState<'marketing' | 'professional' | 'casual' | 'playful'>('marketing');
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -1182,16 +1675,8 @@ export default function Canvas() {
     if (demoGenerating) return;
     setDemoGenerating(true);
     try {
-      const { blocks, tagline } = await generateFullPage(HERO_DEMO_GOAL);
-      if (blocks.length === 0) throw new Error('No blocks generated');
       newProject();
-      setPageGoal(HERO_DEMO_GOAL);
-      for (const b of blocks) {
-        const def = BLOCK_DEFS.find((d) => d.type === b.type);
-        if (def) addBlock(b.type, { ...def.defaultData, ...b.data });
-      }
-      setPageTitle(tagline || 'Demo Sales Page');
-      toast.success(`Demo page created with ${blocks.length} sections`);
+      addBuiltInSamplePage(addBlock, setPageGoal, setPageTitle, HERO_DEMO_GOAL, 'Demo Sales Page');
     } catch (err: any) {
       toast.error(err.message || 'Demo generation failed');
     } finally {
@@ -1307,12 +1792,12 @@ export default function Canvas() {
                       {demoGenerating ? 'Creating demo...' : 'Try fresh demo'}
                     </button>
                     <button
-                      onClick={() => hasShopify ? setShowProductPicker(true) : toast('Connect Shopify to build from products')}
+                      onClick={() => setShowProductPicker(true)}
                       disabled={demoGenerating || polishing || translating}
                       className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:border-green-300 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
                     >
                       <ShoppingBag size={14} className="text-green-500" />
-                      Build from products
+                      Choose another product
                     </button>
                   </div>
                 </div>
@@ -1384,14 +1869,14 @@ export default function Canvas() {
                   <button
                     onClick={(event) => { event.stopPropagation(); handleStartDemoPage(); }}
                     disabled={demoGenerating || polishing || translating}
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
                   >
                     {demoGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                     {demoGenerating ? 'Building...' : 'View sample page'}
                   </button>
                 </div>
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                  <div className="bg-slate-900 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-indigo-200">{SAMPLE_PRODUCT.brand}</div>
+                  <div className="border-b border-slate-100 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-600">{SAMPLE_PRODUCT.brand}</div>
                   <div className="p-3">
                     <div className="mb-3 aspect-[4/3] overflow-hidden rounded-lg bg-slate-100">
                       <img
@@ -1401,8 +1886,8 @@ export default function Canvas() {
                       />
                     </div>
                     <div className="mb-2 h-3 w-16 rounded bg-indigo-100" />
-                    <div className="mb-1.5 h-4 rounded bg-slate-900" />
-                    <div className="mb-3 h-4 w-4/5 rounded bg-slate-900" />
+                    <div className="mb-1.5 h-4 rounded bg-slate-200" />
+                    <div className="mb-3 h-4 w-4/5 rounded bg-slate-200" />
                     <div className="mb-3 grid grid-cols-3 gap-1.5">
                       <div className="h-8 rounded bg-indigo-50" />
                       <div className="h-8 rounded bg-green-50" />
@@ -1413,32 +1898,32 @@ export default function Canvas() {
                 </div>
               </div>
             </div>
-            <div className="bg-slate-900 p-5 text-white">
+            <div className="border-t border-slate-100 bg-white p-5 text-slate-900 lg:border-l lg:border-t-0">
               <div className="flex items-center justify-between gap-3 mb-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Conversion checklist</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Conversion checklist</p>
                 <span className="text-[10px] font-bold text-slate-400">{conversion.checks.filter((check) => check.passed).length}/{conversion.checks.length} done</span>
               </div>
               <div className="space-y-2 mb-4">
                 {conversion.checks.map((check) => (
                   <div key={check.key} className="flex items-start gap-2 text-sm">
-                    <span className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${check.passed ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                    <span className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${check.passed ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                       {check.passed ? 'OK' : '!'}
                     </span>
                     <div>
-                      <p className={check.passed ? 'text-slate-200' : 'text-white'}>{check.label}</p>
-                      {!check.passed && <p className="text-xs text-slate-400 mt-0.5">{check.hint}</p>}
+                      <p className={check.passed ? 'text-slate-700' : 'text-slate-900'}>{check.label}</p>
+                      {!check.passed && <p className="text-xs text-slate-500 mt-0.5">{check.hint}</p>}
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="border-t border-slate-700 pt-4">
-                <p className="text-xs font-semibold text-slate-300 mb-2">Add an offer block</p>
+              <div className="border-t border-slate-100 pt-4">
+                <p className="text-xs font-semibold text-slate-600 mb-2">Add an offer block</p>
                 <div className="grid grid-cols-2 gap-2">
                   {OFFER_PRESETS.map((offer) => (
                     <button
                       key={offer.id}
                       onClick={(event) => { event.stopPropagation(); handleAddOffer(offer); }}
-                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:border-indigo-400 hover:bg-slate-700 transition-all"
+                      className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 transition-all"
                     >
                       {offer.label}
                     </button>

@@ -190,6 +190,52 @@ Rules: Keep all keys. Headlines under 10 words. Keep URLs as "#". Keep color hex
 });
 
 // ── Shopify Products Fetch ────────────────────────────────────────────────
+function stripProductHtml(value: string): string {
+  return value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizePublicTags(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((tag): tag is string => typeof tag === 'string');
+  if (typeof value === 'string') return value.split(',').map((tag) => tag.trim()).filter(Boolean);
+  return [];
+}
+
+async function fetchPublicShopifyProducts(shop: string) {
+  const response = await fetch(`https://${shop}/products.json?limit=50`, {
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) throw new Error(`Public products unavailable (${response.status})`);
+
+  const data = await response.json() as { products?: any[] };
+  return (data.products || [])
+    .filter((p) => p?.title)
+    .map((p) => {
+      const firstVariant = Array.isArray(p.variants) ? p.variants[0] : null;
+      const firstImage = Array.isArray(p.images) ? p.images[0] : null;
+      const productImages = Array.isArray(p.images)
+        ? p.images.map((image: any) => image?.src).filter((src: unknown): src is string => typeof src === 'string' && /^https?:\/\//i.test(src))
+        : [];
+      return {
+        id: p.id,
+        title: p.title,
+        description: stripProductHtml(p.body_html || '').slice(0, 500),
+        vendor: p.vendor || '',
+        productType: p.product_type || '',
+        tags: normalizePublicTags(p.tags),
+        price: firstVariant?.price || '0.00',
+        comparePrice: firstVariant?.compare_at_price || null,
+        image: firstImage?.src || p.image?.src || null,
+        images: productImages,
+        handle: p.handle,
+        variantCount: Array.isArray(p.variants) ? p.variants.length : 1,
+      };
+    });
+}
+
 app.get('/api/shopify/products', async (req, res) => {
   const tokenShop = getShopFromSessionToken(req);
   const shop = tokenShop || (req.query.shop as string || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -198,6 +244,20 @@ app.get('/api/shopify/products', async (req, res) => {
 
   const session = await getSessionForShop(shop);
   if (!session?.accessToken) {
+    try {
+      const publicProducts = await fetchPublicShopifyProducts(shop);
+      if (publicProducts.length > 0) {
+        return res.json({
+          success: true,
+          products: publicProducts,
+          source: 'public-storefront',
+          warning: 'Using public storefront products. Reconnect Shopify admin access to publish pages.',
+        });
+      }
+    } catch (err: any) {
+      console.warn(`Public products fallback failed for ${shop}:`, err.message);
+    }
+
     return res.status(401).json({
       success: false,
       error: 'Not authenticated. Reinstall PageGenie from Shopify admin to reconnect products.',
@@ -272,6 +332,7 @@ app.get('/api/shopify/products', async (req, res) => {
         price: p.variants?.nodes?.[0]?.price || '0.00',
         comparePrice: p.variants?.nodes?.[0]?.compareAtPrice || null,
         image: p.featuredMedia?.preview?.image?.url || null,
+        images: p.featuredMedia?.preview?.image?.url ? [p.featuredMedia.preview.image.url] : [],
         handle: p.handle,
         variantCount: p.variants?.nodes?.length || 1,
       }));
@@ -279,14 +340,418 @@ app.get('/api/shopify/products', async (req, res) => {
     res.json({ success: true, products: shaped });
   } catch (err: any) {
     console.error('Products fetch error:', err.message);
+    try {
+      const publicProducts = await fetchPublicShopifyProducts(shop);
+      if (publicProducts.length > 0) {
+        return res.json({
+          success: true,
+          products: publicProducts,
+          source: 'public-storefront',
+          warning: 'Using public storefront products because Shopify admin fetch failed.',
+        });
+      }
+    } catch (fallbackErr: any) {
+      console.warn(`Public products fallback failed for ${shop}:`, fallbackErr.message);
+    }
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // ── AI Generate Page from Product ─────────────────────────────────────────
+type GeneratedBlock = { type: string; data: Record<string, any> };
+type ImportedReview = { quote: string; name?: string; role?: string; rating?: number; imageUrl?: string };
+const REVIEW_TARGET_COUNT = 15;
+const REVIEW_COLORS = ['#4f46e5', '#0891b2', '#059669', '#dc2626', '#7c3aed'];
+const BUY_BUTTON_COLOR = '#f97316';
+const TRUST_GREEN = '#22c55e';
+const PREMIUM_DARK_FROM = '#07111f';
+const PREMIUM_DARK_TO = '#162033';
+
+function cleanTitle(value: string): string {
+  return value
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s&'-]/g, '')
+    .trim()
+    .slice(0, 64) || 'Your Product';
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || 'CU';
+}
+
+function sanitizeEnglishReviewText(value: string): string {
+  return value
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014\u2212]/g, ' - ')
+    .replace(/\u2026/g, '...')
+    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sanitizeGeneratedText(value: string): string {
+  return sanitizeEnglishReviewText(value)
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .replace(/\s+-\s+/g, ' - ')
+    .trim();
+}
+
+function sanitizeGeneratedValue(key: string, value: any): any {
+  if (typeof value === 'string') {
+    const clean = sanitizeGeneratedText(value);
+    return key.toLowerCase().includes('icon') && !clean ? '+' : clean;
+  }
+  if (Array.isArray(value)) return value.map((item) => sanitizeGeneratedValue('', item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [childKey, sanitizeGeneratedValue(childKey, childValue)])
+    );
+  }
+  return value;
+}
+
+function sanitizeGeneratedBlocks(blocks: GeneratedBlock[]) {
+  blocks.forEach((block) => {
+    block.data = sanitizeGeneratedValue('data', block.data || {});
+  });
+}
+
+function isLikelyEnglishReview(value: string): boolean {
+  const text = sanitizeEnglishReviewText(value).toLowerCase();
+  const words = text.match(/[a-z]+/g) || [];
+  if (words.length < 3) return false;
+
+  const signals = text.match(/\b(the|and|is|it|this|that|with|for|to|of|in|on|my|i|was|very|good|great|love|quality|product|charging|fast|stand|cable|works|use|easy|nice|perfect|recommend|bought|arrived|feels|looks)\b/g) || [];
+  return signals.length >= 2;
+}
+
+function normalizeImportedReviews(value: unknown): ImportedReview[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return { quote: item };
+      if (!item || typeof item !== 'object') return null;
+      const raw = item as Record<string, any>;
+      return {
+        quote: sanitizeEnglishReviewText(String(raw.quote || raw.review || raw.text || '')),
+        name: raw.name ? sanitizeEnglishReviewText(String(raw.name)) : undefined,
+        role: raw.role ? sanitizeEnglishReviewText(String(raw.role)) : undefined,
+        rating: Number(raw.rating) || undefined,
+        imageUrl: typeof raw.imageUrl === 'string' && /^https?:\/\//i.test(raw.imageUrl.trim())
+          ? raw.imageUrl.trim()
+          : undefined,
+      };
+    })
+    .filter((item): item is ImportedReview => !!item?.quote && item.quote.length >= 8 && isLikelyEnglishReview(item.quote))
+    .slice(0, REVIEW_TARGET_COUNT);
+}
+
+function isSameImageUrl(a?: string, b?: string) {
+  if (!a || !b) return false;
+  try {
+    const urlA = new URL(a);
+    const urlB = new URL(b);
+    return `${urlA.host}${urlA.pathname}`.toLowerCase() === `${urlB.host}${urlB.pathname}`.toLowerCase();
+  } catch {
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
+  }
+}
+
+function buildReviewSet(productName: string, existing: any[] = [], fillMissing = true): any[] {
+  const names = [
+    'Nathan P.', 'Jim M.', 'Milo W.', 'Ari L.', 'Camila R.',
+    'Devin K.', 'Sofia N.', 'Ethan B.', 'Layla T.', 'Noah G.',
+    'Maya C.', 'Jordan S.', 'Priya A.', 'Leo V.', 'Hannah D.',
+  ];
+  const quotes = [
+    `The ${productName} does exactly what I needed. It feels useful right away and the setup is simple.`,
+    'Good product and good quality. It made my everyday routine easier than I expected.',
+    'Very convenient to have everything in one place. I use it almost every day now.',
+    'The design feels smart, compact, and easy to carry. I would buy it again.',
+    'I liked that the benefits were clear before I ordered. It matched what the page promised.',
+    'The quality feels better than the cheaper options I tried before.',
+    'This solved a small daily problem I kept ignoring. Really happy with it.',
+    'It arrived looking clean and worked right away. No confusing setup.',
+    'I bought one as a test and ended up recommending it to a friend.',
+    'The product feels practical, not gimmicky. That is what made it worth it for me.',
+    'I use it at my desk, by the bed, and when traveling. Super handy.',
+    'The price felt fair for how often I use it.',
+    'It is simple, useful, and looks better than I expected.',
+    'This is one of those products that makes sense once you try it.',
+    'I was skeptical at first, but it became part of my daily setup fast.',
+  ];
+  const roles = [
+    'Daily user', 'Customer', 'Repeat buyer', 'Desk setup user', 'Gift buyer',
+    'Mobile shopper', 'Home office user', 'Travel customer', 'Tech buyer', 'Busy parent',
+    'Student', 'Remote worker', 'First-time buyer', 'Practical shopper', 'Happy customer',
+  ];
+
+  const normalized = (existing || [])
+    .filter((item) => item?.quote && item?.name)
+    .map((item, index) => {
+      const role = String(item.role || roles[index % roles.length])
+        .replace(/verified\s+(buyer|customer)/ig, 'Customer')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const quote = sanitizeEnglishReviewText(String(item.quote));
+      const name = sanitizeEnglishReviewText(String(item.name));
+      return {
+        quote: quote.slice(0, 180),
+        name: name.slice(0, 40),
+        role: sanitizeEnglishReviewText(role || roles[index % roles.length]).slice(0, 40),
+        avatar: String(item.avatar || getInitials(name)).slice(0, 3).toUpperCase(),
+        avatarBg: String(item.avatarBg || REVIEW_COLORS[index % REVIEW_COLORS.length]),
+        imageUrl: typeof item.imageUrl === 'string' && /^https?:\/\//i.test(item.imageUrl) ? item.imageUrl : '',
+      };
+    })
+    .filter((item) => item.quote.length >= 8 && isLikelyEnglishReview(item.quote));
+
+  if (!fillMissing) return normalized.slice(0, REVIEW_TARGET_COUNT);
+
+  for (let i = normalized.length; i < REVIEW_TARGET_COUNT; i++) {
+    const name = names[i % names.length];
+    normalized.push({
+      quote: quotes[i % quotes.length],
+      name,
+      role: roles[i % roles.length],
+      avatar: getInitials(name),
+      avatarBg: REVIEW_COLORS[i % REVIEW_COLORS.length],
+      imageUrl: '',
+    });
+  }
+
+  return normalized.slice(0, REVIEW_TARGET_COUNT);
+}
+
+function ensureFifteenReviews(blocks: GeneratedBlock[], productName: string, importedReviews: ImportedReview[] = [], productImage = '') {
+  let block = blocks.find((b) => b.type === 'testimonials');
+  if (!block) {
+    const footerIndex = blocks.findIndex((b) => b.type === 'footer');
+    block = {
+      type: 'testimonials',
+      data: {
+        title: 'What customers are saying',
+        testimonials: [],
+      },
+    };
+    if (footerIndex >= 0) blocks.splice(footerIndex, 0, block);
+    else blocks.push(block);
+  }
+
+  block.data = block.data || {};
+  block.data.title = block.data.title || 'What customers are saying';
+  if (importedReviews.length > 0) {
+    block.data.title = 'Real customer reviews';
+    block.data.testimonials = buildReviewSet(productName, importedReviews.map((review, index) => ({
+      quote: review.quote,
+      name: review.name || `Customer ${index + 1}`,
+      role: review.role || 'AliExpress review',
+      imageUrl: isSameImageUrl(review.imageUrl, productImage) ? undefined : review.imageUrl,
+      avatar: getInitials(review.name || `Customer ${index + 1}`),
+      avatarBg: REVIEW_COLORS[index % REVIEW_COLORS.length],
+    })), true);
+    return;
+  }
+  block.data.testimonials = buildReviewSet(productName, Array.isArray(block.data.testimonials) ? block.data.testimonials : []);
+}
+
+function getProductImageGallery(product: any): string[] {
+  const urls = [
+    ...(Array.isArray(product?.images) ? product.images : []),
+    product?.image,
+  ];
+  const seen = new Set<string>();
+  return urls
+    .filter((url): url is string => typeof url === 'string' && /^https?:\/\//i.test(url))
+    .filter((url) => {
+      const key = url.split('?')[0].toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 6);
+}
+
+function ensureProductGallery(blocks: GeneratedBlock[], product: any) {
+  const images = getProductImageGallery(product);
+  if (images.length < 2 || blocks.some((b) => b.type === 'gallery')) return;
+
+  const galleryBlock: GeneratedBlock = {
+    type: 'gallery',
+    data: {
+      title: 'Real product photos',
+      subtitle: 'Actual listing photos so shoppers can see the product from multiple angles.',
+      layout: images.length >= 4 ? 'featured' : 'grid3',
+      images: images.map((url, index) => ({
+        url,
+        caption: index === 0 ? 'Main product photo' : `Product angle ${index + 1}`,
+      })),
+      bgColor: '#ffffff',
+    },
+  };
+
+  const insertIndex = blocks.findIndex((b) => b.type === 'testimonials');
+  if (insertIndex >= 0) blocks.splice(insertIndex, 0, galleryBlock);
+  else blocks.push(galleryBlock);
+}
+
+function applyConversionPalette(blocks: GeneratedBlock[]) {
+  const heroBlock = blocks.find((b) => b.type === 'hero');
+  if (heroBlock) {
+    heroBlock.data = heroBlock.data || {};
+    heroBlock.data.bgFrom = PREMIUM_DARK_FROM;
+    heroBlock.data.bgTo = PREMIUM_DARK_TO;
+    heroBlock.data.primaryBtnColor = BUY_BUTTON_COLOR;
+    heroBlock.data.primaryBtnTextColor = '#ffffff';
+  }
+
+  blocks.forEach((block) => {
+    block.data = block.data || {};
+    if (block.type === 'cta') {
+      block.data.bgColor = PREMIUM_DARK_FROM;
+      block.data.primaryBtnColor = BUY_BUTTON_COLOR;
+      block.data.primaryBtnTextColor = '#ffffff';
+    }
+    if (block.type === 'cta-banner') {
+      block.data.bgColor = PREMIUM_DARK_FROM;
+      block.data.textColor = '#ffffff';
+      block.data.btnColor = BUY_BUTTON_COLOR;
+    }
+    if (block.type === 'stats') {
+      block.data.bgColor = PREMIUM_DARK_TO;
+    }
+  });
+}
+
+function buildFallbackGeneratedPage(pageGoal: string, product?: any, shop?: string): { tagline: string; blocks: GeneratedBlock[] } {
+  const productName = cleanTitle(product?.title || pageGoal);
+  const price = product?.price ? `$${product.price}` : '';
+  const productUrl = product?.handle && shop ? `https://${shop}/products/${product.handle}` : '#';
+  const primaryBtn = price ? `Buy Now - ${price}` : 'Start Building';
+  const productDescription = String(product?.description || '');
+  const heroSubheadline = productDescription
+    ? `${productDescription.slice(0, 160)}${productDescription.length > 160 ? '...' : ''}`
+    : 'A clean, conversion-ready page with product story, proof, benefits, FAQ, and a clear buying path.';
+
+  return {
+    tagline: `${productName} landing page`,
+    blocks: [
+      {
+        type: 'hero',
+        data: {
+          variant: product?.image ? 'split' : 'minimal',
+          eyebrow: product?.vendor || 'AI-built Shopify page',
+          headline: productName,
+          subheadline: heroSubheadline,
+          primaryBtn,
+          primaryBtnHref: productUrl,
+          primaryBtnColor: BUY_BUTTON_COLOR,
+          primaryBtnTextColor: '#ffffff',
+          secondaryBtn: 'See Details',
+          imageUrl: product?.image || '',
+          bgFrom: PREMIUM_DARK_FROM,
+          bgTo: PREMIUM_DARK_TO,
+        },
+      },
+      {
+        type: 'features',
+        data: {
+          variant: 'grid',
+          title: `Why shoppers choose ${productName}`,
+          subtitle: 'Turn product details into clear buying reasons that help visitors feel confident fast.',
+          features: [
+            { icon: '01', title: 'Clear value', description: 'The page explains what the product does, who it is for, and why it is worth buying.' },
+            { icon: '02', title: 'Trust near checkout', description: 'Reviews, shipping details, and return reassurance are close to the call to action.' },
+            { icon: '03', title: 'Made for mobile', description: 'Sections stay simple and scannable so shoppers can understand the offer on any screen.' },
+            { icon: '04', title: 'Product story', description: 'The layout moves from the product promise into benefits, proof, questions, and purchase.' },
+            { icon: '05', title: 'Easy editing', description: 'Every headline, section, and button can be edited after the starter page loads.' },
+            { icon: '06', title: 'Launch-ready flow', description: 'The page gives merchants a polished starting point instead of a blank canvas.' },
+          ],
+        },
+      },
+      {
+        type: 'stats',
+        data: {
+          title: 'Proof shoppers look for',
+          stats: [
+            { value: '4.9/5', label: 'Review target' },
+            { value: '30 days', label: 'Return window' },
+            { value: 'Fast', label: 'Shipping promise' },
+            { value: '24h', label: 'Support response' },
+          ],
+          bgColor: PREMIUM_DARK_TO,
+        },
+      },
+      {
+        type: 'steps',
+        data: {
+          title: 'How the buying path works',
+          subtitle: 'A simple three-step flow helps customers know what happens next.',
+          steps: [
+            { icon: '1', title: 'Choose the product', description: 'Show the offer clearly with benefits, visuals, and the main checkout action.' },
+            { icon: '2', title: 'Confirm the details', description: 'Answer shipping, returns, sizing, or quality questions before hesitation builds.' },
+            { icon: '3', title: 'Checkout with confidence', description: 'End with a focused section that repeats the offer and removes final friction.' },
+          ],
+          bgColor: '#f8fafc',
+        },
+      },
+      {
+        type: 'testimonials',
+        data: {
+          title: 'Reviews that build confidence',
+          testimonials: buildReviewSet(productName),
+        },
+      },
+      {
+        type: 'faq',
+        data: {
+          title: 'Questions before checkout',
+          items: [
+            { question: 'Can I edit this page?', answer: 'Yes. Every section, headline, image, and button can be customized in PageGenie.' },
+            { question: 'Can this link to my Shopify product?', answer: 'Yes. Add your product link to the main buy buttons before publishing.' },
+            { question: 'Does it work for mobile shoppers?', answer: 'Yes. The sections are designed to stay clean and readable on smaller screens.' },
+            { question: 'What should I change first?', answer: 'Start with the product name, offer, real reviews, shipping promise, and product image.' },
+          ],
+        },
+      },
+      {
+        type: 'cta-banner',
+        data: {
+          headline: `Ready to sell ${productName}?`,
+          subtext: 'Use this starter page as a polished base, then swap in your real product details and publish.',
+          btnText: primaryBtn,
+          btnLink: productUrl,
+          secondBtnText: 'Edit Page',
+          bgColor: PREMIUM_DARK_FROM,
+          textColor: '#ffffff',
+          btnColor: BUY_BUTTON_COLOR,
+        },
+      },
+      {
+        type: 'footer',
+        data: {
+          brand: product?.vendor || 'Your Store',
+          tagline: 'Product pages built with PageGenie.',
+          copyright: `(c) ${new Date().getFullYear()} Your Store. All rights reserved.`,
+          links: 'Shop,Reviews,FAQ,Contact',
+          bgColor: '#ffffff',
+        },
+      },
+    ],
+  };
+}
+
 app.post('/api/ai/generate-from-product', requireBilling, async (req, res) => {
   const { product } = req.body;
   if (!product?.title) return res.status(400).json({ success: false, error: 'product required' });
+  const importedReviews = normalizeImportedReviews(req.body.reviews);
 
   const priceStr = product.comparePrice
     ? `$${product.price} (was $${product.comparePrice})`
@@ -317,8 +782,8 @@ Return ONLY this JSON (no markdown, no extra text):
 
 Block types with exact data shapes:
 hero: {"variant":"centered","eyebrow":"str","headline":"str","subheadline":"str","primaryBtn":"str","secondaryBtn":"str","bgFrom":"#hex","bgTo":"#hex"}
-features: {"variant":"grid","title":"str","subtitle":"str","features":[{"icon":"emoji","title":"str","description":"str"}]}
-steps: {"title":"str","subtitle":"str","steps":[{"icon":"emoji","title":"str","description":"str"}],"bgColor":"#hex"}
+features: {"variant":"grid","title":"str","subtitle":"str","features":[{"icon":"ASCII text","title":"str","description":"str"}]}
+steps: {"title":"str","subtitle":"str","steps":[{"icon":"ASCII text","title":"str","description":"str"}],"bgColor":"#hex"}
 pricing: {"title":"str","subtitle":"str","plans":[{"name":"str","price":"str","period":"str","description":"str","cta":"str","highlighted":"true|false","features":"comma,separated"}]}
 testimonials: {"title":"str","testimonials":[{"quote":"str","name":"str","role":"str","avatar":"XY","avatarBg":"#hex"}]}
 cta: {"headline":"str","subtext":"str","primaryBtn":"str","secondaryBtn":"str","bgColor":"#hex"}
@@ -328,18 +793,23 @@ footer: {"brand":"str","tagline":"str","copyright":"str","links":"About,Pricing,
 logo-cloud: {"title":"str","logos":[{"name":"str","initial":"XY"}]}
 
 Rules:
+- Write all visible copy in English only.
+- Use ASCII punctuation only. Do not use emojis, smart quotes, bullets, arrows, or special symbols.
+- Icon fields must be ASCII text only, such as "+", "01", "02", or "03".
 - Choose 7-8 blocks: always start hero, always end footer
 - Write SPECIFIC copy about THIS product — use the real product name, real price, real benefits
 - Hero headline: make it about the transformation/benefit this product delivers
 - Hero primaryBtn: "Buy Now — ${priceStr}" or "Get Yours for ${priceStr}"
 - Hero eyebrow: something like "New Arrival" or "Top Rated" or the brand name
 - features: exactly 6 items — specific product benefits/features with relevant emojis
-- testimonials: 3 realistic reviews for this type of product
+- testimonials: exactly 15 concise customer-style reviews in English only for this type of product
 - faq: 4 specific questions buyers ask about this type of product
 - stats: 4 numbers that build credibility (customer count, rating, satisfaction %, etc.)
 - If comparePrice exists, highlight the savings in the hero subheadline
 - steps: "How it works" — 3 steps (order → receive → enjoy/use)
-- bgFrom/bgTo: dark gradient matching brand/product vibe
+- bgFrom/bgTo: use a premium high-converting tech gradient from "${PREMIUM_DARK_FROM}" to "${PREMIUM_DARK_TO}"
+- use orange "${BUY_BUTTON_COLOR}" for buy buttons and green "${TRUST_GREEN}" only for trust/proof accents
+- avoid gold/yellow as a main color
 - avatarBg: vary "#4f46e5","#0891b2","#059669","#dc2626"`,
       }],
     });
@@ -362,6 +832,10 @@ Rules:
 
     const VALID_TYPES = new Set(['banner','navbar','hero','features','pricing','testimonials','cta','faq','text-content','stats','footer','video','logo-cloud','newsletter','richtext','contact','steps','comparison','team','countdown','gallery','timeline','embed','divider','testimonial-single','cta-banner','cookie-consent','custom-html']);
     data.blocks = data.blocks.filter((b: any) => VALID_TYPES.has(b.type));
+    sanitizeGeneratedBlocks(data.blocks);
+    ensureProductGallery(data.blocks, product);
+    ensureFifteenReviews(data.blocks, cleanTitle(product.title), importedReviews, product.image);
+    applyConversionPalette(data.blocks);
 
     // Inject real product data into the hero block
     const heroBlock = data.blocks.find((b: any) => b.type === 'hero');
@@ -370,6 +844,10 @@ Rules:
       if (product.image) {
         heroBlock.data.imageUrl = product.image;
       }
+      heroBlock.data.bgFrom = PREMIUM_DARK_FROM;
+      heroBlock.data.bgTo = PREMIUM_DARK_TO;
+      heroBlock.data.primaryBtnColor = BUY_BUTTON_COLOR;
+      heroBlock.data.primaryBtnTextColor = '#ffffff';
       // Real "Buy Now" link → Shopify product page
       const shop = (req.body.shop || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
       if (product.handle) {
@@ -391,6 +869,16 @@ Rules:
       data.blocks.forEach((b: any) => {
         if (b.type === 'cta' || b.type === 'cta-banner') {
           b.data.primaryBtnHref = productUrl;
+          if (b.type === 'cta') {
+            b.data.bgColor = PREMIUM_DARK_FROM;
+            b.data.primaryBtnColor = BUY_BUTTON_COLOR;
+            b.data.primaryBtnTextColor = '#ffffff';
+          }
+          if (b.type === 'cta-banner') {
+            b.data.bgColor = PREMIUM_DARK_FROM;
+            b.data.textColor = '#ffffff';
+            b.data.btnColor = BUY_BUTTON_COLOR;
+          }
         }
       });
     }
@@ -399,7 +887,13 @@ Rules:
     res.json({ success: true, ...data, product });
   } catch (err: any) {
     console.error('Generate from product error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    const shop = (req.body.shop || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const fallback = buildFallbackGeneratedPage(`${product.title} product landing page`, product, shop);
+    sanitizeGeneratedBlocks(fallback.blocks);
+    ensureProductGallery(fallback.blocks, product);
+    ensureFifteenReviews(fallback.blocks, cleanTitle(product.title), importedReviews, product.image);
+    applyConversionPalette(fallback.blocks);
+    res.json({ success: true, ...fallback, product, fallback: true });
   }
 });
 
@@ -423,8 +917,8 @@ Return ONLY this JSON (no markdown, no extra text):
 
 Block types with exact data shapes:
 hero: {"variant":"centered","eyebrow":"str","headline":"str","subheadline":"str","primaryBtn":"str","secondaryBtn":"str","bgFrom":"#hex","bgTo":"#hex"}
-features: {"variant":"grid","title":"str","subtitle":"str","features":[{"icon":"emoji","title":"str","description":"str"}]}
-steps: {"title":"str","subtitle":"str","steps":[{"icon":"emoji","title":"str","description":"str"}],"bgColor":"#hex"}
+features: {"variant":"grid","title":"str","subtitle":"str","features":[{"icon":"ASCII text","title":"str","description":"str"}]}
+steps: {"title":"str","subtitle":"str","steps":[{"icon":"ASCII text","title":"str","description":"str"}],"bgColor":"#hex"}
 pricing: {"title":"str","subtitle":"str","plans":[{"name":"str","price":"str","period":"str","description":"str","cta":"str","highlighted":"true|false","features":"comma,separated"}]}
 testimonials: {"title":"str","testimonials":[{"quote":"str","name":"str","role":"str","avatar":"XY","avatarBg":"#hex"}]}
 cta: {"headline":"str","subtext":"str","primaryBtn":"str","secondaryBtn":"str","bgColor":"#hex"}
@@ -435,17 +929,22 @@ logo-cloud: {"title":"str","logos":[{"name":"str","initial":"XY"}]}
 newsletter: {"headline":"str","subtext":"str","placeholder":"str","btnText":"str","bgColor":"#hex"}
 
 Rules:
+- Write all visible copy in English only.
+- Use ASCII punctuation only. Do not use emojis, smart quotes, bullets, arrows, or special symbols.
+- Icon fields must be ASCII text only, such as "+", "01", "02", or "03".
 - Choose 7-8 blocks: always start hero, always end footer
 - Write SPECIFIC copy for this exact goal (no generic placeholders)
 - Always include a "steps" block to show how it works — 3 steps with relevant emojis
-- features: exactly 6 items with relevant emojis
-- testimonials: exactly 3 with realistic names/roles
+- features: exactly 6 items with simple ASCII icons
+- testimonials: exactly 15 concise customer-style reviews in English only with realistic names/roles
 - faq: 4 specific questions about the product/service
 - stats: 4 impressive but credible numbers
 - pricing: 3 tiers, middle highlighted:"true"
 - avatarBg: vary colors "#4f46e5","#0891b2","#059669","#dc2626"
-- bgFrom/bgTo: dark gradient like "#0f172a" to "#1e1b4b"
-- dark bgColor: "#0f172a" or "#111827"
+- bgFrom/bgTo: dark conversion-focused gradient like "${PREMIUM_DARK_FROM}" to "${PREMIUM_DARK_TO}"
+- use orange "${BUY_BUTTON_COLOR}" for buy buttons and green "${TRUST_GREEN}" only for trust/proof accents
+- avoid gold/yellow as a main color
+- dark bgColor: "${PREMIUM_DARK_FROM}" or "${PREMIUM_DARK_TO}"
 - light bgColor: "#f0f9ff" or "#f8fafc"
 - steps bgColor: "#f8fafc"`,
       }],
@@ -476,11 +975,15 @@ Rules:
     // Filter out any blocks with unknown types
     const VALID_TYPES = new Set(['banner','navbar','hero','features','pricing','testimonials','cta','faq','text-content','stats','footer','video','logo-cloud','newsletter','richtext','contact','steps','comparison','team','countdown','gallery','timeline','embed','divider','testimonial-single','cta-banner','cookie-consent','custom-html']);
     data.blocks = data.blocks.filter((b: any) => VALID_TYPES.has(b.type));
+    sanitizeGeneratedBlocks(data.blocks);
+    ensureFifteenReviews(data.blocks, cleanTitle(pageGoal));
+    applyConversionPalette(data.blocks);
 
     res.json({ success: true, ...data });
   } catch (err: any) {
     console.error('Generate page error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    const fallback = buildFallbackGeneratedPage(pageGoal);
+    res.json({ success: true, ...fallback, fallback: true });
   }
 });
 
@@ -629,25 +1132,66 @@ Respond:
 });
 
 // ── Page Share (preview link) ─────────────────────────────────────────────
-const shareStore = new Map<string, { html: string; title: string; createdAt: number }>();
+type ShareEntry = { html: string; title: string; createdAt: number };
+const SHARES_FILE = path.join(__dirname, '../../data/shares.json');
+const shareStore = new Map<string, ShareEntry>(loadShares());
 const SHARE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
 
+function loadShares(): [string, ShareEntry][] {
+  try {
+    const dir = path.dirname(SHARES_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(SHARES_FILE)) return [];
+    const data = JSON.parse(fs.readFileSync(SHARES_FILE, 'utf8'));
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveShares() {
+  try {
+    const dir = path.dirname(SHARES_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(SHARES_FILE, JSON.stringify(Array.from(shareStore.entries()), null, 2));
+  } catch (err) {
+    console.error('Failed to save share previews:', err);
+  }
+}
+
+function pruneExpiredShares() {
+  let changed = false;
+  for (const [k, v] of shareStore) {
+    if (Date.now() - v.createdAt > SHARE_TTL_MS) {
+      shareStore.delete(k);
+      changed = true;
+    }
+  }
+  if (changed) saveShares();
+}
+
 app.post('/api/share', (req, res) => {
-  const { html, title } = req.body;
+  const { html, title, shareId } = req.body;
   if (!html || typeof html !== 'string') {
     return res.status(400).json({ success: false, error: 'html required' });
   }
-  // Clean up expired entries
-  for (const [k, v] of shareStore) {
-    if (Date.now() - v.createdAt > SHARE_TTL_MS) shareStore.delete(k);
+  pruneExpiredShares();
+  let id = typeof shareId === 'string' && /^[a-z0-9-]{6,32}$/i.test(shareId)
+    ? shareId
+    : '';
+  if (!id) {
+    do {
+      id = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 5);
+    } while (shareStore.has(id));
   }
-  const id = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 5);
   shareStore.set(id, { html, title: title || 'Preview', createdAt: Date.now() });
+  saveShares();
   const origin = `${req.protocol}://${req.get('host')}`;
   res.json({ success: true, shareId: id, url: `${origin}/share/${id}` });
 });
 
 app.get('/share/:id', (req, res) => {
+  pruneExpiredShares();
   const entry = shareStore.get(req.params.id);
   if (!entry) {
     return res.status(404).send('<html><body style="font-family:sans-serif;padding:40px;text-align:center"><h2>Preview expired or not found</h2><p>Share links are valid for 48 hours.</p></body></html>');

@@ -42,9 +42,13 @@ function loadBilling(): Record<string, BillingRecord> {
 }
 
 function saveBilling(data: Record<string, BillingRecord>): void {
-  const dir = path.dirname(BILLING_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(BILLING_FILE, JSON.stringify(data, null, 2));
+  try {
+    const dir = path.dirname(BILLING_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(BILLING_FILE, JSON.stringify(data, null, 2));
+  } catch (err: any) {
+    console.warn(`Billing persistence unavailable: ${err.message}`);
+  }
 }
 
 export function getOrCreateBilling(clientId: string, shop: string | null = null): BillingRecord {

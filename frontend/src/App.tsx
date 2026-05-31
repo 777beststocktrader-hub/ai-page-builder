@@ -4,6 +4,8 @@ import Toolbar from './components/Toolbar';
 import BlockLibrary from './components/BlockLibrary';
 import Canvas from './components/Canvas';
 import PropertiesPanel from './components/PropertiesPanel';
+import AppSidebar, { AppSection } from './components/AppSidebar';
+import AppWorkspacePages from './components/AppWorkspacePages';
 import TrialBanner from './components/TrialBanner';
 import PaywallModal from './components/PaywallModal';
 import { usePageStore } from './store/pageStore';
@@ -11,6 +13,7 @@ import { exportPageToHtml } from './lib/htmlExport';
 import { saveProject } from './lib/projects';
 import { getBlockDef } from './blocks/blockDefs';
 import { getClientId, fetchBillingStatus, BillingStatus } from './lib/billing';
+import { saveShopifyCredentials } from './components/ShopifyConnectModal';
 import { Search, X, Keyboard } from 'lucide-react';
 
 const SHORTCUTS = [
@@ -149,7 +152,7 @@ function BlockSearchOverlay({ onClose }: { onClose: () => void }) {
 }
 
 export default function App() {
-  const { isPreview, selectedBlockId, deleteBlock, selectBlock, duplicateBlock } = usePageStore();
+  const { page, isPreview, selectedBlockId, deleteBlock, selectBlock, duplicateBlock, setPreview } = usePageStore();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -157,6 +160,12 @@ export default function App() {
   const [clientId] = useState(() => getClientId());
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [activeSection, setActiveSection] = useState<AppSection>('create');
+
+  useEffect(() => {
+    const shop = new URLSearchParams(window.location.search).get('shop');
+    if (shop) saveShopifyCredentials(shop);
+  }, []);
 
   // Load billing status on mount and after Shopify billing approval.
   useEffect(() => {
@@ -260,6 +269,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [deleteBlock, selectBlock, duplicateBlock]);
 
+  const navigateSection = (section: AppSection) => {
+    setActiveSection(section);
+    if (section !== 'create') setPreview(false);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-slate-900 overflow-hidden">
       {showSearch && <BlockSearchOverlay onClose={() => setShowSearch(false)} />}
@@ -295,29 +309,42 @@ export default function App() {
       <Toolbar />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar */}
-        {!isPreview && (
-          <aside className="w-56 bg-slate-800 border-r border-slate-700 flex flex-col flex-shrink-0 overflow-hidden">
-            <div className="px-3 py-2 border-b border-slate-700">
-              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Blocks</h2>
-            </div>
-            <BlockLibrary />
-          </aside>
-        )}
+        <AppSidebar activeSection={activeSection} onNavigate={navigateSection} />
 
-        {/* Main Canvas */}
-        {isPreview ? <PreviewFrame /> : <Canvas />}
+        {activeSection === 'create' ? (
+          <>
+            {/* Left Sidebar */}
+            {!isPreview && page.blocks.length > 0 && (
+              <aside className="w-56 bg-slate-800 border-r border-slate-700 flex flex-col flex-shrink-0 overflow-hidden">
+                <div className="px-3 py-2 border-b border-slate-700">
+                  <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Blocks</h2>
+                </div>
+                <BlockLibrary />
+              </aside>
+            )}
 
-        {/* Right Sidebar */}
-        {!isPreview && (
-          <aside className="w-64 bg-slate-800 border-l border-slate-700 flex flex-col flex-shrink-0 overflow-hidden">
-            <div className="px-3 py-2 border-b border-slate-700">
-              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                {selectedBlockId ? 'Edit' : 'Settings'}
-              </h2>
-            </div>
-            <PropertiesPanel />
-          </aside>
+            {/* Main Canvas */}
+            {isPreview ? <PreviewFrame /> : <Canvas />}
+
+            {/* Right Sidebar */}
+            {!isPreview && page.blocks.length > 0 && (
+              <aside className="w-64 bg-slate-800 border-l border-slate-700 flex flex-col flex-shrink-0 overflow-hidden">
+                <div className="px-3 py-2 border-b border-slate-700">
+                  <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    {selectedBlockId ? 'Edit' : 'Settings'}
+                  </h2>
+                </div>
+                <PropertiesPanel />
+              </aside>
+            )}
+          </>
+        ) : (
+          <AppWorkspacePages
+            section={activeSection}
+            billing={billing}
+            onOpenBuilder={() => setActiveSection('create')}
+            onOpenBilling={() => setShowPaywall(true)}
+          />
         )}
       </div>
     </div>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" role="img" aria-label="PageGenie robot logo">
+  <defs>
+    <linearGradient id="bg" x1="12" y1="10" x2="98" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4f46e5"/>
+      <stop offset="0.55" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="robot" x1="28" y1="28" x2="84" y2="92" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="100" height="100" rx="28" fill="url(#bg)"/>
+  <path d="M60 25v11" stroke="#dbeafe" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="60" cy="21" r="7" fill="#10b981" stroke="#ffffff" stroke-width="4"/>
+  <rect x="34" y="36" width="52" height="46" rx="16" fill="url(#robot)" stroke="rgba(255,255,255,0.75)" stroke-width="2.6"/>
+  <rect x="26" y="52" width="9" height="20" rx="4.5" fill="#bfdbfe"/>
+  <rect x="85" y="52" width="9" height="20" rx="4.5" fill="#bfdbfe"/>
+  <circle cx="49" cy="56" r="7" fill="#4f46e5"/>
+  <circle cx="71" cy="56" r="7" fill="#4f46e5"/>
+  <path d="M49 72c7.2 5.6 14.8 5.6 22 0" fill="none" stroke="#10b981" stroke-width="5" stroke-linecap="round"/>
+  <rect x="44" y="87" width="32" height="7" rx="3.5" fill="#dbeafe" opacity="0.9"/>
+  <path d="M86 31l2.5-6.6 2.5 6.6 6.6 2.5-6.6 2.5-2.5 6.6-2.5-6.6-6.6-2.5 6.6-2.5Z" fill="#ffffff" opacity="0.95"/>
+  <text x="132" y="61" fill="#0f172a" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="900" letter-spacing="0">PageGenie</text>
+  <text x="134" y="88" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="0">AI commerce landing pages</text>
+</svg>

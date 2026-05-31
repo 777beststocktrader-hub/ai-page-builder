@@ -4,6 +4,7 @@ import ProjectsModal from './ProjectsModal';
 import ShopifyConnectModal, { getShopifyCredentials, clearShopifyCredentials, ShopifyCredentials } from './ShopifyConnectModal';
 import ProductPickerModal from './ProductPickerModal';
 import MySitesModal from './MySitesModal';
+import PageGenieLogo from './PageGenieLogo';
 import { usePageStore } from '../store/pageStore';
 import { downloadHtml, copyHtml, previewInNewTab, downloadZip, exportPageToHtml, exportPageJson, importPageJson } from '../lib/htmlExport';
 import { publishToShopify, isShopifyEmbedded } from '../lib/shopifyPublish';
@@ -159,10 +160,11 @@ export default function Toolbar() {
       {/* Left: Brand + Page Title */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/30">
+          <PageGenieLogo size="sm" />
+          <div className="hidden w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/30">
             ✨
           </div>
-          <span className="text-white font-semibold text-sm hidden sm:block">PageGenie</span>
+          <span className="hidden">PageGenie</span>
           {inShopify && (
             <span className="text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full border border-green-800 hidden sm:block">
               Shopify

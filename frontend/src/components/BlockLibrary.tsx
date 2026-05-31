@@ -7,7 +7,15 @@ import toast from 'react-hot-toast';
 
 const CATEGORIES = ['Navigation', 'Hero', 'Content', 'Media', 'Social Proof', 'Conversion', 'Layout', 'Social', 'CTA', 'Footer'];
 
-const PAGE_TEMPLATES = [
+function makeWhiteTemplateBlockData(type: string, data: Record<string, any>) {
+  if (type === 'navbar') return { ...data, bgColor: '#ffffff', sticky: 'solid' };
+  if (type === 'hero') return { ...data, variant: data.imageUrl ? 'split' : 'minimal', bgFrom: '#ffffff', bgTo: '#ffffff' };
+  if (type === 'cta-banner') return { ...data, bgColor: '#ffffff', textColor: '#0f172a', btnColor: '#4f46e5' };
+  if (['stats', 'cta', 'footer', 'newsletter', 'content', 'steps', 'testimonial-single'].includes(type)) return { ...data, bgColor: '#ffffff' };
+  return data;
+}
+
+const LEGACY_PAGE_TEMPLATES = [
   {
     name: 'SaaS Startup',
     emoji: '🚀',
@@ -125,6 +133,82 @@ const PAGE_TEMPLATES = [
   },
 ];
 
+const PAGE_TEMPLATES = [
+  {
+    name: 'Product Launch',
+    emoji: 'P',
+    goal: 'Launch a Shopify product with benefits, reviews, FAQ, and a strong buy call to action.',
+    blocks: [
+      { type: 'navbar', overrides: { brand: 'Your Store', links: 'Benefits,Reviews,FAQ', ctaText: 'Shop Now' } },
+      { type: 'hero', overrides: { eyebrow: 'New arrival', headline: 'Make this product feel easy to buy', subheadline: 'Show the product, explain why it matters, and give shoppers a clear reason to checkout today.', primaryBtn: 'Shop the Product', secondaryBtn: 'See Benefits' } },
+      { type: 'features', overrides: { title: 'Why customers choose it', subtitle: 'Turn product details into simple buying reasons.' } },
+      { type: 'stats', overrides: { title: 'Trust signals shoppers look for', stats: [{ value: '4.9/5', label: 'Average rating' }, { value: '30 days', label: 'Easy returns' }, { value: 'Free', label: 'Shipping offer' }, { value: '24h', label: 'Support response' }] } },
+      { type: 'testimonials', overrides: { title: 'Customer proof' } },
+      { type: 'faq', overrides: { title: 'Questions before checkout' } },
+      { type: 'cta-banner', overrides: { headline: 'Ready to make it yours?', subtext: 'Close with the offer, reassurance, and a simple checkout button.', btnText: 'Buy Now', secondBtnText: 'See Details' } },
+      { type: 'footer', overrides: { brand: 'Your Store', tagline: 'Premium product pages built with PageGenie.' } },
+    ],
+  },
+  {
+    name: 'Flash Sale',
+    emoji: '%',
+    goal: 'Promote a limited-time Shopify offer with savings, urgency, trust, and checkout clarity.',
+    blocks: [
+      { type: 'banner', overrides: { text: 'Limited-time offer ends soon', linkText: 'Shop now', bgColor: '#4f46e5' } },
+      { type: 'navbar', overrides: { brand: 'Your Store', links: 'Sale,Reviews,FAQ', ctaText: 'Claim Deal' } },
+      { type: 'hero', overrides: { eyebrow: 'Flash sale', headline: 'Give shoppers a reason to buy today', subheadline: 'Lead with the discount, make the savings obvious, and answer the questions that stop checkout.', primaryBtn: 'Claim the Deal', secondaryBtn: 'See Details' } },
+      { type: 'features', overrides: { title: 'Why this deal is worth it', subtitle: 'Make the sale feel valuable, not random.' } },
+      { type: 'testimonials', overrides: { title: 'Shoppers love it' } },
+      { type: 'faq', overrides: { title: 'Sale questions' } },
+      { type: 'cta-banner', overrides: { headline: 'Get the offer before it ends', subtext: 'Close with one clear button and the strongest reason to act now.', btnText: 'Shop Sale', secondBtnText: 'View Details' } },
+      { type: 'footer', overrides: { brand: 'Your Store', tagline: 'Limited-time offers made clear.' } },
+    ],
+  },
+  {
+    name: 'Collection Drop',
+    emoji: 'C',
+    goal: 'Showcase a Shopify collection with product highlights, trust points, reviews, and collection CTA.',
+    blocks: [
+      { type: 'navbar', overrides: { brand: 'Your Store', links: 'Collection,Benefits,Reviews', ctaText: 'Browse' } },
+      { type: 'hero', overrides: { eyebrow: 'New collection', headline: 'A collection built around your customer', subheadline: 'Introduce the mood, the product range, and why this edit is worth browsing now.', primaryBtn: 'Browse Collection', secondaryBtn: 'View Highlights' } },
+      { type: 'gallery', overrides: { title: 'Featured pieces', subtitle: 'Show the range with clean product visuals and a simple shopping path.' } },
+      { type: 'features', overrides: { title: 'Designed for everyday use', subtitle: 'Help shoppers compare the collection quickly.' } },
+      { type: 'stats', overrides: { title: 'Trusted by shoppers' } },
+      { type: 'testimonials', overrides: { title: 'What customers are saying' } },
+      { type: 'cta-banner', overrides: { headline: 'Find your favorite', subtext: 'Send shoppers back into the collection with a confident final CTA.', btnText: 'Shop Collection', secondBtnText: 'See Reviews' } },
+      { type: 'footer', overrides: { brand: 'Your Store', tagline: 'Collections shoppers can scan and trust.' } },
+    ],
+  },
+  {
+    name: 'Bundle Offer',
+    emoji: 'B',
+    goal: 'Sell a Shopify bundle with savings, what is included, reasons to buy, FAQ, reviews, and bundle CTA.',
+    blocks: [
+      { type: 'navbar', overrides: { brand: 'Your Store', links: 'Bundle,Savings,FAQ', ctaText: 'Build Bundle' } },
+      { type: 'hero', overrides: { eyebrow: 'Bundle and save', headline: 'Make the bigger order feel smarter', subheadline: 'Show what is included, explain the savings, and reduce hesitation before checkout.', primaryBtn: 'Shop the Bundle', secondaryBtn: 'See What Is Inside' } },
+      { type: 'features', overrides: { title: 'What the bundle includes', subtitle: 'Make every item in the set feel useful and valuable.' } },
+      { type: 'comparison', overrides: { title: 'Why bundle instead of buying one item?', col1: 'Single item', col2: 'Bundle offer' } },
+      { type: 'testimonials', overrides: { title: 'Why customers choose the set' } },
+      { type: 'faq', overrides: { title: 'Bundle questions' } },
+      { type: 'cta-banner', overrides: { headline: 'Ready to bundle and save?', subtext: 'Give shoppers one clear path to choose the higher-value offer.', btnText: 'Shop Bundle', secondBtnText: 'Compare Options' } },
+      { type: 'footer', overrides: { brand: 'Your Store', tagline: 'Bundle pages built to lift average order value.' } },
+    ],
+  },
+  {
+    name: 'Waitlist Page',
+    emoji: 'W',
+    goal: 'Capture emails for a Shopify product drop, waitlist, or launch announcement.',
+    blocks: [
+      { type: 'navbar', overrides: { brand: 'Your Store', links: 'Preview,Benefits,FAQ', ctaText: 'Join Waitlist' } },
+      { type: 'hero', overrides: { eyebrow: 'Early access', headline: 'Build demand before the drop goes live', subheadline: 'Collect emails, explain the product promise, and make shoppers feel first in line.', primaryBtn: 'Join Waitlist', secondaryBtn: 'See Preview' } },
+      { type: 'features', overrides: { title: 'What subscribers get first', subtitle: 'Explain why joining the list is worth it.' } },
+      { type: 'newsletter', overrides: { headline: 'Join the early list', subtext: 'Get first access, launch updates, and the opening offer.', placeholder: 'Enter your email', btnText: 'Notify Me' } },
+      { type: 'faq', overrides: { title: 'Launch details' } },
+      { type: 'footer', overrides: { brand: 'Your Store', tagline: 'Launch pages that start demand early.' } },
+    ],
+  },
+];
+
 export default function BlockLibrary() {
   const { addBlock, page, pageGoal, setPageGoal, setPageTitle, loadPage, selectBlock, selectedBlockId, moveBlock, deleteBlock, toggleBlockVisibility, updateBlock } = usePageStore();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -142,7 +226,7 @@ export default function BlockLibrary() {
     loadPage({ id: page.id, title: template.name + ' Page', blocks: [] });
     template.blocks.forEach(({ type, overrides }) => {
       const def = BLOCK_DEFS.find((b) => b.type === type);
-      if (def) addBlock(type, { ...def.defaultData, ...overrides });
+      if (def) addBlock(type, makeWhiteTemplateBlockData(type, { ...def.defaultData, ...overrides }));
     });
     setPageTitle(template.name + ' Page');
     toast.success(`"${template.name}" template loaded!`);

@@ -130,8 +130,17 @@ export interface ShopifyProduct {
   price: string;
   comparePrice: string | null;
   image: string | null;
+  images?: string[];
   handle: string;
   variantCount: number;
+}
+
+export interface ImportedReview {
+  quote: string;
+  name?: string;
+  role?: string;
+  rating?: number;
+  imageUrl?: string;
 }
 
 export async function fetchShopifyProducts(shop: string): Promise<ShopifyProduct[]> {
@@ -143,9 +152,10 @@ export async function fetchShopifyProducts(shop: string): Promise<ShopifyProduct
 
 export async function generatePageFromProduct(
   product: ShopifyProduct,
-  shop?: string
+  shop?: string,
+  reviews?: ImportedReview[]
 ): Promise<{ tagline: string; blocks: Array<{ type: string; data: Record<string, any> }>; product: ShopifyProduct }> {
-  const { data } = await api.post('/ai/generate-from-product', { product, shop: shop || '' });
+  const { data } = await api.post('/ai/generate-from-product', { product, shop: shop || '', reviews: reviews || [] });
   if (!data.success) throw new Error(data.error || 'Page generation failed');
   return { tagline: data.tagline || '', blocks: data.blocks || [], product: data.product };
 }

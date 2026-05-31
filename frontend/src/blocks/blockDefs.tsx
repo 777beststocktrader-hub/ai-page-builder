@@ -2,6 +2,19 @@ import React from 'react';
 import { BlockDef } from '../types';
 import IE from '../lib/InlineEditable';
 
+function isLightHexColor(value?: string) {
+  if (!value || typeof value !== 'string') return false;
+  const hex = value.trim().replace('#', '');
+  const normalized = hex.length === 3
+    ? hex.split('').map((char) => char + char).join('')
+    : hex;
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return false;
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 190;
+}
+
 function ContactFormBlock({ data, onUpdate }: { data: Record<string, any>; onUpdate?: (k: string, v: string) => void }) {
   const [form, setForm] = React.useState({ name: '', email: '', message: '' });
   const [status, setStatus] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -199,21 +212,24 @@ const BLOCK_DEFS: BlockDef[] = [
       const links = typeof data.links === 'string' ? data.links.split(',') : data.links || [];
       const isBlur = data.sticky === 'blur';
       const isTransparent = data.sticky === 'transparent';
+      const isLight = !isTransparent && !isBlur && isLightHexColor(data.bgColor);
+      const textColor = isLight ? '#0f172a' : '#ffffff';
+      const linkColor = isLight ? '#64748b' : '#cbd5e1';
       return (
         <nav
           className="px-8 py-4 flex items-center justify-between"
           style={{
             backgroundColor: isTransparent ? 'transparent' : isBlur ? 'rgba(15,23,42,0.8)' : data.bgColor,
             backdropFilter: isBlur ? 'blur(12px)' : undefined,
-            borderBottom: isBlur ? '1px solid rgba(255,255,255,0.08)' : undefined,
+            borderBottom: isLight ? '1px solid #e2e8f0' : isBlur ? '1px solid rgba(255,255,255,0.08)' : undefined,
           }}
         >
           <div className="flex items-center gap-8">
             <IE as="span" value={data.brand} fieldKey="brand" onUpdate={onUpdate}
-              className="text-white font-bold text-lg" />
+              className="font-bold text-lg" style={{ color: textColor }} />
             <div className="hidden md:flex items-center gap-6">
               {links.map((link: string, i: number) => (
-                <a key={i} href="#" className="text-slate-300 hover:text-white text-sm transition-colors">{link.trim()}</a>
+                <a key={i} href="#" className="text-sm transition-colors hover:opacity-80" style={{ color: linkColor }}>{link.trim()}</a>
               ))}
             </div>
           </div>
@@ -227,23 +243,27 @@ const BLOCK_DEFS: BlockDef[] = [
       const links = typeof data.links === 'string' ? data.links.split(',') : data.links || [];
       const isBlur = data.sticky === 'blur';
       const isTransparent = data.sticky === 'transparent';
+      const isLight = !isTransparent && !isBlur && isLightHexColor(data.bgColor);
       const navBg = isTransparent ? 'transparent' : isBlur ? 'rgba(15,23,42,0.85)' : data.bgColor;
       const navBgMobile = isTransparent ? (data.bgColor || '#0f172a') : navBg;
+      const navText = isLight ? '#0f172a' : '#fff';
+      const navMuted = isLight ? '#64748b' : 'rgba(203,213,225,1)';
+      const navBorder = isLight ? 'border-bottom:1px solid #e2e8f0;' : isBlur ? 'border-bottom:1px solid rgba(255,255,255,0.08);' : '';
       return `
-<nav id="navbar" style="padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;${isBlur ? 'backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.08);' : ''}background:${navBg};">
-  <span style="color:#fff;font-weight:700;font-size:1.125rem;">${data.brand}</span>
+<nav id="navbar" style="padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;${isBlur ? 'backdrop-filter:blur(12px);' : ''}${navBorder}background:${navBg};">
+  <span style="color:${navText};font-weight:700;font-size:1.125rem;">${data.brand}</span>
   <div id="nav-links" style="display:flex;align-items:center;gap:24px;">
-    ${links.map((l: string) => `<a href="#" style="color:rgba(203,213,225,1);font-size:14px;text-decoration:none;">${l.trim()}</a>`).join('')}
+    ${links.map((l: string) => `<a href="#" style="color:${navMuted};font-size:14px;text-decoration:none;">${l.trim()}</a>`).join('')}
     <a href="#" style="padding:8px 16px;background:#4f46e5;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">${data.ctaText}</a>
   </div>
   <button id="nav-toggle" onclick="(function(){var m=document.getElementById('nav-mobile');m.style.display=m.style.display==='flex'?'none':'flex';})()" style="display:none;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:4px;">
-    <span style="display:block;width:22px;height:2px;background:#fff;border-radius:1px;"></span>
-    <span style="display:block;width:22px;height:2px;background:#fff;border-radius:1px;"></span>
-    <span style="display:block;width:22px;height:2px;background:#fff;border-radius:1px;"></span>
+    <span style="display:block;width:22px;height:2px;background:${navText};border-radius:1px;"></span>
+    <span style="display:block;width:22px;height:2px;background:${navText};border-radius:1px;"></span>
+    <span style="display:block;width:22px;height:2px;background:${navText};border-radius:1px;"></span>
   </button>
 </nav>
-<div id="nav-mobile" style="display:none;flex-direction:column;gap:0;background:${navBgMobile};padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.1);position:sticky;top:57px;z-index:99;">
-  ${links.map((l: string) => `<a href="#" style="display:block;padding:12px 32px;color:rgba(203,213,225,1);font-size:14px;text-decoration:none;">${l.trim()}</a>`).join('')}
+<div id="nav-mobile" style="display:none;flex-direction:column;gap:0;background:${navBgMobile};padding:8px 0;border-bottom:1px solid ${isLight ? '#e2e8f0' : 'rgba(255,255,255,0.1)'};position:sticky;top:57px;z-index:99;">
+  ${links.map((l: string) => `<a href="#" style="display:block;padding:12px 32px;color:${navMuted};font-size:14px;text-decoration:none;">${l.trim()}</a>`).join('')}
   <div style="padding:12px 32px;"><a href="#" style="display:inline-block;padding:10px 20px;background:#4f46e5;color:#fff;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">${data.ctaText}</a></div>
 </div>
 <style>@media(max-width:768px){#nav-links{display:none!important;}#nav-toggle{display:flex!important;}}</style>`;
@@ -289,24 +309,28 @@ const BLOCK_DEFS: BlockDef[] = [
       const hasProductImg = !!data.imageUrl;
 
       if (v === 'split') {
+        const isLight = isLightHexColor(data.bgFrom) && isLightHexColor(data.bgTo);
+        const primaryBg = data.primaryBtnColor || (isLight ? '#4f46e5' : '#f97316');
+        const primaryColor = data.primaryBtnTextColor || '#ffffff';
         return (
           <section style={{ background: `linear-gradient(135deg, ${data.bgFrom} 0%, ${data.bgTo} 100%)` }}
-            className="py-20 px-8 text-white">
+            className={`py-20 px-8 ${isLight ? 'border-b border-slate-100 text-slate-900' : 'text-white'}`}>
             <div className="max-w-5xl mx-auto flex items-center gap-12 flex-wrap lg:flex-nowrap">
               <div className="flex-1 min-w-[280px]">
                 <IE as="span" value={data.eyebrow} fieldKey="eyebrow" onUpdate={onUpdate}
                   className="inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-widest uppercase mb-5"
-                  style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }} />
+                  style={isLight ? { background: '#eef2ff', color: '#4f46e5' } : { background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }} />
                 <IE as="h1" value={data.headline} fieldKey="headline" onUpdate={onUpdate}
                   className="text-4xl lg:text-5xl font-bold mb-5 leading-tight block" />
                 <IE as="p" value={data.subheadline} fieldKey="subheadline" onUpdate={onUpdate}
-                  className="text-lg text-blue-100 mb-8 leading-relaxed block" />
+                  className={`text-lg mb-8 leading-relaxed block ${isLight ? 'text-slate-500' : 'text-blue-100'}`} />
                 <div className="flex flex-wrap gap-3">
                   <a href={buyHref} target={buyHref !== '#' ? '_blank' : undefined} rel="noopener noreferrer"
-                    className="px-7 py-3.5 bg-white text-indigo-900 rounded-xl font-semibold hover:bg-blue-50 transition-all shadow-lg">
+                    className="px-7 py-3.5 rounded-xl font-semibold transition-all shadow-lg hover:brightness-110"
+                    style={{ background: primaryBg, color: primaryColor, boxShadow: `0 18px 38px ${primaryBg}44` }}>
                     <IE as="span" value={data.primaryBtn} fieldKey="primaryBtn" onUpdate={onUpdate} />
                   </a>
-                  <a href="#" className="px-7 py-3.5 rounded-xl font-semibold border border-white/30 hover:bg-white/10 transition-all">
+                  <a href="#" className={`px-7 py-3.5 rounded-xl font-semibold border transition-all ${isLight ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50' : 'border-white/30 hover:bg-white/10'}`}>
                     <IE as="span" value={data.secondaryBtn} fieldKey="secondaryBtn" onUpdate={onUpdate} />
                   </a>
                 </div>
@@ -315,9 +339,9 @@ const BLOCK_DEFS: BlockDef[] = [
                 {hasProductImg ? (
                   <img src={data.imageUrl} alt="" className="rounded-2xl shadow-2xl w-full object-cover" style={{ maxHeight: '420px' }} />
                 ) : (
-                  <div className="rounded-2xl bg-white/10 border-2 border-dashed border-white/20 aspect-video flex flex-col items-center justify-center gap-2">
+                  <div className={`rounded-2xl border-2 border-dashed aspect-video flex flex-col items-center justify-center gap-2 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/10 border-white/20'}`}>
                     <span className="text-4xl">🖼️</span>
-                    <p className="text-white/40 text-sm text-center px-4">Paste an image URL in the<br/>Image URL field →</p>
+                    <p className={`text-sm text-center px-4 ${isLight ? 'text-slate-400' : 'text-white/40'}`}>Paste an image URL in the<br/>Image URL field →</p>
                   </div>
                 )}
               </div>
@@ -392,16 +416,19 @@ const BLOCK_DEFS: BlockDef[] = [
       const v = data.variant || 'centered';
       const buyHref = data.primaryBtnHref || '#';
       const hasImg = !!data.imageUrl;
+      const isSplitLight = isLightHexColor(data.bgFrom) && isLightHexColor(data.bgTo);
+      const primaryBg = data.primaryBtnColor || (isSplitLight ? '#4f46e5' : '#f97316');
+      const primaryColor = data.primaryBtnTextColor || '#ffffff';
       if (v === 'split') return `
-<section style="background:linear-gradient(135deg,${data.bgFrom} 0%,${data.bgTo} 100%);padding:80px 32px;color:#fff;">
+<section style="background:linear-gradient(135deg,${data.bgFrom} 0%,${data.bgTo} 100%);padding:80px 32px;color:${isSplitLight ? '#0f172a' : '#fff'};${isSplitLight ? 'border-bottom:1px solid #f1f5f9;' : ''}">
   <div style="max-width:960px;margin:0 auto;display:flex;align-items:center;gap:48px;flex-wrap:wrap;">
     <div style="flex:1;min-width:280px;">
-      <span style="display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);margin-bottom:20px;">${data.eyebrow}</span>
+      <span style="display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;background:${isSplitLight ? '#eef2ff' : 'rgba(255,255,255,0.1)'};color:${isSplitLight ? '#4f46e5' : 'rgba(255,255,255,0.8)'};margin-bottom:20px;">${data.eyebrow}</span>
       <h1 style="font-size:2.75rem;font-weight:700;margin-bottom:20px;line-height:1.15;">${data.headline}</h1>
-      <p style="font-size:1.125rem;color:rgba(219,234,254,1);margin-bottom:32px;line-height:1.7;">${data.subheadline}</p>
+      <p style="font-size:1.125rem;color:${isSplitLight ? '#64748b' : 'rgba(219,234,254,1)'};margin-bottom:32px;line-height:1.7;">${data.subheadline}</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
-        <a href="${buyHref}" style="padding:14px 28px;background:#fff;color:#1e1b4b;border-radius:12px;font-weight:700;text-decoration:none;">${data.primaryBtn}</a>
-        <a href="#" style="padding:14px 28px;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:12px;font-weight:600;text-decoration:none;">${data.secondaryBtn}</a>
+        <a href="${buyHref}" style="padding:14px 28px;background:${primaryBg};color:${primaryColor};border-radius:12px;font-weight:700;text-decoration:none;box-shadow:0 18px 38px ${primaryBg}44;">${data.primaryBtn}</a>
+        <a href="#" style="padding:14px 28px;border:1px solid ${isSplitLight ? '#e2e8f0' : 'rgba(255,255,255,0.3)'};color:${isSplitLight ? '#334155' : '#fff'};border-radius:12px;font-weight:600;text-decoration:none;">${data.secondaryBtn}</a>
       </div>
     </div>
     <div style="flex:1;min-width:260px;">
@@ -723,6 +750,7 @@ const BLOCK_DEFS: BlockDef[] = [
           { key: 'quote', label: 'Quote', type: 'textarea' },
           { key: 'name', label: 'Name', type: 'text' },
           { key: 'role', label: 'Role & Company', type: 'text' },
+          { key: 'imageUrl', label: 'Review Photo URL', type: 'url' },
           { key: 'avatar', label: 'Avatar Initials', type: 'text' },
           { key: 'avatarBg', label: 'Avatar Color', type: 'color' },
         ],
@@ -744,8 +772,15 @@ const BLOCK_DEFS: BlockDef[] = [
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {data.testimonials?.map((t: any, i: number) => (
               <div key={i} className="p-8 rounded-2xl bg-slate-50 border border-slate-100">
+                {t.imageUrl && (
+                  <img
+                    src={t.imageUrl}
+                    alt={`Review photo from ${t.name || 'customer'}`}
+                    className="w-full aspect-[4/3] object-cover rounded-xl mb-5 border border-slate-200"
+                  />
+                )}
                 <div className="flex mb-4">
-                  {[1,2,3,4,5].map(s => <span key={s} className="text-yellow-400 text-lg">★</span>)}
+                  {[1,2,3,4,5].map(s => <span key={s} className="text-yellow-400 text-lg">&#9733;</span>)}
                 </div>
                 <p className="text-gray-700 italic mb-6 leading-relaxed">"{t.quote}"</p>
                 <div className="flex items-center gap-3">
@@ -771,7 +806,8 @@ const BLOCK_DEFS: BlockDef[] = [
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;">
       ${(data.testimonials || []).map((t: any) => `
       <div style="padding:32px;border-radius:16px;background:#f8fafc;border:1px solid #f1f5f9;">
-        <div style="margin-bottom:16px;color:#facc15;font-size:1.125rem;">★★★★★</div>
+        ${t.imageUrl ? `<img src="${t.imageUrl}" alt="Review photo from ${t.name || 'customer'}" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;margin-bottom:20px;border:1px solid #e2e8f0;" />` : ''}
+        <div style="margin-bottom:16px;color:#facc15;font-size:1.125rem;">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <p style="color:#374151;font-style:italic;margin-bottom:24px;line-height:1.7;">"${t.quote}"</p>
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="width:40px;height:40px;border-radius:50%;background:${t.avatarBg};display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;flex-shrink:0;">${t.avatar}</div>
@@ -802,35 +838,47 @@ const BLOCK_DEFS: BlockDef[] = [
       secondaryBtn: 'See live demos',
       bgColor: '#1e1b4b',
     },
-    renderCanvas: (data, onUpdate) => (
-      <section className="py-24 px-8 text-center" style={{ backgroundColor: data.bgColor }}>
-        <div className="max-w-2xl mx-auto">
-          <IE as="h2" value={data.headline} fieldKey="headline" onUpdate={onUpdate}
-            className="text-4xl font-bold text-white mb-5 block" />
-          <IE as="p" value={data.subtext} fieldKey="subtext" onUpdate={onUpdate}
-            className="text-indigo-200 text-xl mb-10 block" />
-          <div className="flex flex-wrap gap-4 justify-center">
-            <a href="#" className="px-8 py-4 bg-white text-indigo-900 rounded-xl font-bold text-lg hover:bg-blue-50 transition-all">
-              <IE as="span" value={data.primaryBtn} fieldKey="primaryBtn" onUpdate={onUpdate} />
-            </a>
-            <a href="#" className="px-8 py-4 text-white underline underline-offset-4 font-medium text-lg hover:opacity-80 transition-all">
-              <IE as="span" value={data.secondaryBtn} fieldKey="secondaryBtn" onUpdate={onUpdate} />
-            </a>
+    renderCanvas: (data, onUpdate) => {
+      const isLight = isLightHexColor(data.bgColor);
+      const primaryBg = data.primaryBtnColor || (isLight ? '#4f46e5' : '#f97316');
+      const primaryColor = data.primaryBtnTextColor || '#ffffff';
+      return (
+        <section className="py-24 px-8 text-center" style={{ backgroundColor: data.bgColor }}>
+          <div className="max-w-2xl mx-auto">
+            <IE as="h2" value={data.headline} fieldKey="headline" onUpdate={onUpdate}
+              className={`text-4xl font-bold mb-5 block ${isLight ? 'text-slate-900' : 'text-white'}`} />
+            <IE as="p" value={data.subtext} fieldKey="subtext" onUpdate={onUpdate}
+              className={`text-xl mb-10 block ${isLight ? 'text-slate-500' : 'text-indigo-200'}`} />
+            <div className="flex flex-wrap gap-4 justify-center">
+              <a href={data.primaryBtnHref || '#'} className="px-8 py-4 rounded-xl font-bold text-lg transition-all hover:brightness-110"
+                style={{ background: primaryBg, color: primaryColor, boxShadow: `0 18px 38px ${primaryBg}44` }}>
+                <IE as="span" value={data.primaryBtn} fieldKey="primaryBtn" onUpdate={onUpdate} />
+              </a>
+              <a href="#" className={`px-8 py-4 underline underline-offset-4 font-medium text-lg hover:opacity-80 transition-all ${isLight ? 'text-slate-600' : 'text-white'}`}>
+                <IE as="span" value={data.secondaryBtn} fieldKey="secondaryBtn" onUpdate={onUpdate} />
+              </a>
+            </div>
           </div>
-        </div>
-      </section>
-    ),
-    exportHtml: (data) => `
+        </section>
+      );
+    },
+    exportHtml: (data) => {
+      const isLight = isLightHexColor(data.bgColor);
+      const primaryBg = data.primaryBtnColor || (isLight ? '#4f46e5' : '#f97316');
+      const primaryColor = data.primaryBtnTextColor || '#ffffff';
+      const buyHref = data.primaryBtnHref || '#';
+      return `
 <section style="padding:96px 32px;text-align:center;background:${data.bgColor};">
   <div style="max-width:512px;margin:0 auto;">
-    <h2 style="font-size:2.5rem;font-weight:700;color:#fff;margin-bottom:20px;">${data.headline}</h2>
-    <p style="color:rgba(199,210,254,1);font-size:1.25rem;margin-bottom:40px;">${data.subtext}</p>
+    <h2 style="font-size:2.5rem;font-weight:700;color:${isLight ? '#0f172a' : '#fff'};margin-bottom:20px;">${data.headline}</h2>
+    <p style="color:${isLight ? '#64748b' : 'rgba(199,210,254,1)'};font-size:1.25rem;margin-bottom:40px;">${data.subtext}</p>
     <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
-      <a href="#" style="padding:16px 32px;background:#fff;color:#1e1b4b;border-radius:12px;font-weight:700;font-size:1.125rem;">${data.primaryBtn}</a>
-      <a href="#" style="padding:16px 32px;color:#fff;text-decoration:underline;font-size:1.125rem;">${data.secondaryBtn}</a>
+      <a href="${buyHref}" style="padding:16px 32px;background:${primaryBg};color:${primaryColor};border-radius:12px;font-weight:700;font-size:1.125rem;box-shadow:0 18px 38px ${primaryBg}44;">${data.primaryBtn}</a>
+      <a href="#" style="padding:16px 32px;color:${isLight ? '#475569' : '#fff'};text-decoration:underline;font-size:1.125rem;">${data.secondaryBtn}</a>
     </div>
   </div>
-</section>`,
+</section>`;
+    },
   },
 
   {
@@ -1023,35 +1071,41 @@ const BLOCK_DEFS: BlockDef[] = [
       ],
       bgColor: '#0f172a',
     },
-    renderCanvas: (data, onUpdate) => (
-      <section className="py-20 px-8 text-white" style={{ backgroundColor: data.bgColor }}>
-        <div className="max-w-5xl mx-auto text-center">
-          <IE as="h2" value={data.title} fieldKey="title" onUpdate={onUpdate}
-            className="text-3xl font-bold mb-12 block" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {data.stats?.map((s: any, i: number) => (
-              <div key={i}>
-                <div className="text-5xl font-bold text-white mb-2">{s.value}</div>
-                <div className="text-slate-400 text-sm font-medium">{s.label}</div>
-              </div>
-            ))}
+    renderCanvas: (data, onUpdate) => {
+      const isLight = isLightHexColor(data.bgColor);
+      return (
+        <section className="py-20 px-8" style={{ backgroundColor: data.bgColor, color: isLight ? '#0f172a' : '#ffffff' }}>
+          <div className="max-w-5xl mx-auto text-center">
+            <IE as="h2" value={data.title} fieldKey="title" onUpdate={onUpdate}
+              className="text-3xl font-bold mb-12 block" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {data.stats?.map((s: any, i: number) => (
+                <div key={i}>
+                  <div className={`text-5xl font-bold mb-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>{s.value}</div>
+                  <div className={`text-sm font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{s.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
-    ),
-    exportHtml: (data) => `
-<section style="padding:80px 32px;background:${data.bgColor};color:#fff;text-align:center;">
+        </section>
+      );
+    },
+    exportHtml: (data) => {
+      const isLight = isLightHexColor(data.bgColor);
+      return `
+<section style="padding:80px 32px;background:${data.bgColor};color:${isLight ? '#0f172a' : '#fff'};text-align:center;">
   <div style="max-width:960px;margin:0 auto;">
     <h2 style="font-size:2rem;font-weight:700;margin-bottom:48px;">${data.title}</h2>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:32px;">
       ${(data.stats || []).map((s: any) => `
       <div>
-        <div data-counter style="font-size:3rem;font-weight:700;color:#fff;margin-bottom:8px;">${s.value}</div>
-        <div style="color:#94a3b8;font-size:14px;font-weight:500;">${s.label}</div>
+        <div data-counter style="font-size:3rem;font-weight:700;color:${isLight ? '#0f172a' : '#fff'};margin-bottom:8px;">${s.value}</div>
+        <div style="color:${isLight ? '#64748b' : '#94a3b8'};font-size:14px;font-weight:500;">${s.label}</div>
       </div>`).join('')}
     </div>
   </div>
-</section>`,
+</section>`;
+    },
   },
 
   {
@@ -1075,27 +1129,28 @@ const BLOCK_DEFS: BlockDef[] = [
     },
     renderCanvas: (data, onUpdate) => {
       const links = typeof data.links === 'string' ? data.links.split(',') : data.links || [];
+      const isLight = isLightHexColor(data.bgColor);
       return (
-        <footer className="py-16 px-8 text-white" style={{ backgroundColor: data.bgColor }}>
+        <footer className={`py-16 px-8 ${isLight ? 'text-slate-900' : 'text-white'}`} style={{ backgroundColor: data.bgColor }}>
           <div className="max-w-5xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-start mb-12 gap-8">
               <div>
                 <IE as="h3" value={data.brand} fieldKey="brand" onUpdate={onUpdate}
                   className="text-xl font-bold mb-2 block" />
                 <IE as="p" value={data.tagline} fieldKey="tagline" onUpdate={onUpdate}
-                  className="text-slate-400 text-sm block" />
+                  className={`text-sm block ${isLight ? 'text-slate-500' : 'text-slate-400'}`} />
               </div>
               <div className="flex flex-wrap gap-6">
                 {links.map((link: string, i: number) => (
-                  <a key={i} href="#" className="text-slate-400 hover:text-white text-sm transition-colors">
+                  <a key={i} href="#" className={`text-sm transition-colors hover:opacity-80 ${isLight ? 'text-slate-500' : 'text-slate-400 hover:text-white'}`}>
                     {link.trim()}
                   </a>
                 ))}
               </div>
             </div>
-            <div className="border-t border-slate-800 pt-8">
+            <div className={`border-t pt-8 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
               <IE as="p" value={data.copyright} fieldKey="copyright" onUpdate={onUpdate}
-                className="text-slate-500 text-sm block" />
+                className={`text-sm block ${isLight ? 'text-slate-400' : 'text-slate-500'}`} />
             </div>
           </div>
         </footer>
@@ -1103,20 +1158,21 @@ const BLOCK_DEFS: BlockDef[] = [
     },
     exportHtml: (data) => {
       const links = typeof data.links === 'string' ? data.links.split(',') : data.links || [];
+      const isLight = isLightHexColor(data.bgColor);
       return `
-<footer style="padding:64px 32px;background:${data.bgColor};color:#fff;">
+<footer style="padding:64px 32px;background:${data.bgColor};color:${isLight ? '#0f172a' : '#fff'};">
   <div style="max-width:960px;margin:0 auto;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:48px;flex-wrap:wrap;gap:32px;">
       <div>
         <h3 style="font-size:1.25rem;font-weight:700;margin-bottom:8px;">${data.brand}</h3>
-        <p style="color:#94a3b8;font-size:14px;">${data.tagline}</p>
+        <p style="color:${isLight ? '#64748b' : '#94a3b8'};font-size:14px;">${data.tagline}</p>
       </div>
       <div style="display:flex;gap:24px;flex-wrap:wrap;">
-        ${links.map((l: string) => `<a href="#" style="color:#94a3b8;text-decoration:none;font-size:14px;">${l.trim()}</a>`).join('')}
+        ${links.map((l: string) => `<a href="#" style="color:${isLight ? '#64748b' : '#94a3b8'};text-decoration:none;font-size:14px;">${l.trim()}</a>`).join('')}
       </div>
     </div>
-    <div style="border-top:1px solid #1e293b;padding-top:32px;">
-      <p style="color:#475569;font-size:14px;">${data.copyright}</p>
+    <div style="border-top:1px solid ${isLight ? '#e2e8f0' : '#1e293b'};padding-top:32px;">
+      <p style="color:${isLight ? '#94a3b8' : '#475569'};font-size:14px;">${data.copyright}</p>
     </div>
   </div>
 </footer>`;
