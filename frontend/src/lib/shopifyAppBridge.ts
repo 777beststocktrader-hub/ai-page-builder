@@ -32,6 +32,15 @@ export function getShopifyAppBridge(): ClientApplication | null {
 }
 
 export async function getShopifySessionToken(): Promise<string | null> {
+  const shopifyGlobal = (window as any).shopify;
+  if (shopifyGlobal?.idToken) {
+    try {
+      return await shopifyGlobal.idToken();
+    } catch {
+      // Fall back to the legacy package path below.
+    }
+  }
+
   const app = getShopifyAppBridge();
   if (!app) return null;
 
