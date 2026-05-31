@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Maximize2, Lock, Unlock, Wand2, Share2 } from 'lucide-react';
 import { generateSeoDescription, analyzePageConversions, generateBrandPalette } from '../lib/api';
+import { getClientId } from '../lib/billing';
+import { getShopifySessionToken } from '../lib/shopifyAppBridge';
 
 const FONT_OPTIONS = [
   { value: 'Inter', label: 'Inter — Clean & Modern' },
@@ -219,7 +221,11 @@ function UrlFieldEditor({ value, onChange, placeholder }: { value: any; onChange
     try {
       const formData = new FormData();
       formData.append('image', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const token = await getShopifySessionToken();
+      const headers: Record<string, string> = token
+        ? { Authorization: `Bearer ${token}` }
+        : { 'x-client-id': getClientId() };
+      const res = await fetch('/api/upload', { method: 'POST', headers, body: formData });
       const data = await res.json();
       if (data.success) onChange(data.url);
       else alert('Upload failed: ' + data.error);

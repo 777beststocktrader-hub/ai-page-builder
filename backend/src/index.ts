@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import Anthropic from '@anthropic-ai/sdk';
 import authRouter from './routes/auth';
 import webhooksRouter from './routes/webhooks';
@@ -40,8 +41,25 @@ function saveSubscriber(email: string, shop: string | null = null) {
 const app = express();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const aiRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests — please wait a moment and try again.' },
+});
+
+const uploadRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many uploads — please wait.' },
+});
 
 // Image upload config
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
@@ -72,6 +90,17 @@ app.use('/api/webhooks', express.raw({ type: 'application/json' }), (req, _res, 
 
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+
+// Security headers
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  if (IS_PROD) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
 
 // Content-Security-Policy for Shopify embedded app
 app.use((req, res, next) => {
@@ -134,13 +163,19 @@ app.use('/api/shopify/publish', publishRouter);
 
 // ── Image Upload ──────────────────────────────────────────────────────────
 app.use('/uploads', express.static(UPLOADS_DIR));
-app.post('/api/upload', upload.single('image'), (req: any, res) => {
+app.post('/api/upload', uploadRateLimit, upload.single('image'), (req: any, res) => {
+  const shop = getShopFromSessionToken(req);
+  const clientId = (shop || (req.headers['x-client-id'] as string) || '').trim();
+  if (!clientId) {
+    if (req.file) try { fs.unlinkSync(req.file.path); } catch {}
+    return res.status(401).json({ success: false, error: 'Authentication required to upload images.' });
+  }
   if (!req.file) return res.status(400).json({ success: false, error: 'No image provided or invalid type' });
   const ext = req.file.mimetype.split('/')[1].replace('svg+xml', 'svg');
   const newName = `${req.file.filename}.${ext}`;
   fs.renameSync(req.file.path, path.join(UPLOADS_DIR, newName));
   const url = `/uploads/${newName}`;
-  console.log(`🖼️  Image uploaded: ${newName}`);
+  console.log(`Image uploaded: ${newName}`);
   res.json({ success: true, url });
 });
 
@@ -150,6 +185,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ── AI Content Generation ─────────────────────────────────────────────────
+app.use('/api/ai', aiRateLimit);
 app.post('/api/ai/generate', requireBilling, async (req, res) => {
   const { prompt, blockType, tone = 'professional', currentData, context } = req.body;
 
