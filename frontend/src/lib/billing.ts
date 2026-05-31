@@ -1,10 +1,10 @@
 import { v4 as uuid } from 'uuid';
-import { getHostFromUrl, getShopFromUrl, getShopifySessionToken } from './shopifyAppBridge';
+import { getHostFromUrl, getShopForApi, getShopFromUrl, getShopifySessionToken } from './shopifyAppBridge';
 
 const CLIENT_ID_KEY = 'pg-client-id';
 
 export function getClientId(): string {
-  const shopParam = getShopFromUrl();
+  const shopParam = getShopForApi();
   if (shopParam) return shopParam;
 
   let id = localStorage.getItem(CLIENT_ID_KEY);
@@ -32,7 +32,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export async function fetchBillingStatus(clientId: string): Promise<BillingStatus> {
-  const shop = getShopFromUrl() || clientId;
+  const shop = getShopForApi() || clientId;
   const params = new URLSearchParams({ clientId, shop });
   const res = await fetch(`/api/billing/status?${params}`, {
     headers: await authHeaders(),
@@ -43,7 +43,7 @@ export async function fetchBillingStatus(clientId: string): Promise<BillingStatu
 }
 
 export async function createCheckoutSession(clientId: string): Promise<string> {
-  const shop = getShopFromUrl() || clientId;
+  const shop = getShopForApi() || clientId;
   const res = await fetch('/api/billing/create-checkout', {
     method: 'POST',
     headers: {
@@ -58,7 +58,7 @@ export async function createCheckoutSession(clientId: string): Promise<string> {
 }
 
 export async function openBillingPortal(clientId: string): Promise<string> {
-  const shop = getShopFromUrl() || clientId;
+  const shop = getShopForApi() || clientId;
   const res = await fetch('/api/billing/portal', {
     method: 'POST',
     headers: {

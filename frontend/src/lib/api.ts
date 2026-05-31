@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getClientId } from './billing';
-import { getShopFromUrl, getShopifySessionToken } from './shopifyAppBridge';
+import { getShopForApi, getShopifySessionToken } from './shopifyAppBridge';
 
 const api = axios.create({ baseURL: '/api' });
 
@@ -8,7 +8,7 @@ api.interceptors.request.use(async config => {
   config.headers = config.headers || {};
   const token = await getShopifySessionToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
-  config.headers['x-client-id'] = getShopFromUrl() || getClientId();
+  config.headers['x-client-id'] = getShopForApi() || getClientId();
   return config;
 });
 

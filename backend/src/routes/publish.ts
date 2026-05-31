@@ -7,6 +7,16 @@ function cleanShop(value: string): string {
   return value.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
+function appOrigin(req: Request): string {
+  return (process.env.APP_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+}
+
+function authUrlForShop(req: Request, shop: string, host?: string): string {
+  const params = new URLSearchParams({ shop });
+  if (host) params.set('host', host);
+  return `${appOrigin(req)}/api/auth?${params.toString()}`;
+}
+
 function gidNumber(gid: string): string {
   return gid.split('/').pop() || gid;
 }
@@ -14,7 +24,7 @@ function gidNumber(gid: string): string {
 router.post('/', async (req: Request, res: Response) => {
   const tokenShop = getShopFromSessionToken(req);
   const shop = tokenShop || cleanShop((req.body.shop as string) || '');
-  const { pageTitle, html } = req.body;
+  const { pageTitle, html, host } = req.body;
 
   if (!shop || !pageTitle || !html) {
     res.status(400).json({ success: false, error: 'Missing shop, pageTitle, or html' });
@@ -25,8 +35,9 @@ router.post('/', async (req: Request, res: Response) => {
   if (!session?.accessToken) {
     res.status(401).json({
       success: false,
-      error: 'Not authenticated. Please install the app first.',
-      authUrl: `/api/auth?shop=${shop}`,
+      error: 'Shopify connection expired. Reconnect PageGenie, then click Publish again.',
+      authUrl: authUrlForShop(req, shop, typeof host === 'string' ? host : undefined),
+      requiresReconnect: true,
     });
     return;
   }

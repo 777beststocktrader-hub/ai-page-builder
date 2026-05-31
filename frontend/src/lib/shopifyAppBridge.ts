@@ -2,9 +2,25 @@ import createApp, { ClientApplication } from '@shopify/app-bridge';
 import { getSessionToken } from '@shopify/app-bridge/utilities';
 
 let appBridge: ClientApplication | null = null;
+const SHOPIFY_STORE_STORAGE_KEY = 'ai-pb-shopify-store';
 
 export function getShopFromUrl(): string {
   return new URLSearchParams(window.location.search).get('shop') || '';
+}
+
+export function getSavedShopFromStorage(): string {
+  try {
+    const raw = localStorage.getItem(SHOPIFY_STORE_STORAGE_KEY);
+    if (!raw) return '';
+    const saved = JSON.parse(raw) as { shop?: string };
+    return typeof saved.shop === 'string' ? saved.shop : '';
+  } catch {
+    return '';
+  }
+}
+
+export function getShopForApi(): string {
+  return getShopFromUrl() || getSavedShopFromStorage();
 }
 
 export function getHostFromUrl(): string {
