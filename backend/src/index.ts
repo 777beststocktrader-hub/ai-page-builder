@@ -182,7 +182,7 @@ app.post('/api/upload', uploadRateLimit, upload.single('image'), (req: any, res)
 
 // ── Health check ──────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', model: 'claude-haiku-4-5-20251001' });
+  res.json({ status: 'ok', model: 'claude-opus-4-8' });
 });
 
 // ── AI Content Generation ─────────────────────────────────────────────────
@@ -202,7 +202,7 @@ app.post('/api/ai/generate', requireBilling, async (req, res) => {
 
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 1500,
       system: 'You are an expert copywriter. Generate web page content. Respond with valid JSON only. No markdown, no explanations.',
       messages: [{
@@ -805,7 +805,7 @@ app.post('/api/ai/generate-from-product', requireBilling, async (req, res) => {
 
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 4096,
       system: 'You are an expert e-commerce copywriter and conversion specialist. Write compelling product landing page copy. Respond with valid JSON only. No markdown.',
       messages: [{
@@ -942,7 +942,7 @@ app.post('/api/ai/generate-page', requireBilling, async (req, res) => {
   }
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 4096,
       system: 'You are an expert landing page copywriter and conversion specialist. Write compelling, specific copy. Respond with valid JSON only. No markdown.',
       messages: [{
@@ -1073,7 +1073,7 @@ app.post('/api/ai/analyze', async (req, res) => {
   const { pageGoal, blockTypes } = req.body;
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 600,
       system: 'You are a conversion rate optimization (CRO) expert. Respond with valid JSON only. No markdown.',
       messages: [{
@@ -1103,7 +1103,7 @@ app.post('/api/ai/title', async (req, res) => {
   if (!goal?.trim()) return res.status(400).json({ success: false, error: 'goal required' });
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 60,
       system: 'You are a copywriter. Output ONLY a short catchy page title (3-8 words). No quotes, no punctuation at end, no explanation.',
       messages: [{
@@ -1123,7 +1123,7 @@ app.post('/api/ai/seo', async (req, res) => {
   const { title, goal, blocks } = req.body;
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 200,
       system: 'You are an SEO expert. Write a meta description. Output ONLY the description text — no quotes, no JSON, no explanation.',
       messages: [{
@@ -1147,7 +1147,7 @@ app.post('/api/ai/suggest', async (req, res) => {
   const { pageGoal } = req.body;
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 300,
       system: 'You are an expert at planning landing pages. Respond with JSON only. No markdown.',
       messages: [{
@@ -1354,7 +1354,7 @@ app.post('/api/ai/ab-test', async (req, res) => {
   if (!headline) return res.status(400).json({ success: false, error: 'headline required' });
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 800,
       system: 'You are a world-class copywriter and CRO expert. Respond with valid JSON only. No markdown.',
       messages: [{
@@ -1427,7 +1427,7 @@ app.post('/api/ai/import-url', async (req, res) => {
     ].filter(Boolean).join('\n');
 
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 200,
       system: 'You are an expert at extracting business information from websites. Respond with JSON only.',
       messages: [{
@@ -1467,7 +1467,7 @@ app.post('/api/ai/polish-page', requireBilling, async (req, res) => {
   };
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 4096,
       system: 'You are an expert copywriter. Rewrite landing page content for consistency and conversion. Respond with valid JSON only. No markdown.',
       messages: [{
@@ -1516,7 +1516,7 @@ app.post('/api/ai/translate', async (req, res) => {
   }
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 4096,
       system: 'You are a professional translator. Translate web page content. Respond with valid JSON only. No markdown.',
       messages: [{
@@ -1642,7 +1642,7 @@ app.post('/api/ai/brand-palette', async (req, res) => {
   if (!description?.trim()) return res.status(400).json({ success: false, error: 'Description required' });
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-8',
       max_tokens: 400,
       system: 'You are a brand designer. Return JSON only. No markdown, no explanation.',
       messages: [{
@@ -1691,5 +1691,5 @@ initDb().catch((err) => console.error('DB init failed (using file fallback):', e
 app.listen(PORT, () => {
   console.log(`\n🚀 PageGenie running on http://localhost:${PORT}`);
   console.log('Open/install PageGenie from Shopify admin or the Partner Dashboard test install flow.');
-  console.log(`🤖  Model: claude-haiku-4-5-20251001\n`);
+  console.log(`🤖  Model: claude-opus-4-8\n`);
 });
