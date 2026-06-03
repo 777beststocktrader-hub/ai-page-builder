@@ -45,15 +45,16 @@ export default function Toolbar() {
       return;
     }
     setPublishing(true);
+    const toastId = toast.loading('Publishing to Shopify...');
     try {
       const { url, adminUrl } = await publishToShopify(page, theme) as any;
       setPublishedUrl(url);
       toast.success(
         <span>Page live! <a href={adminUrl || url} target="_blank" rel="noopener noreferrer" className="underline">View in Shopify</a></span>,
-        { duration: 6000 }
+        { id: toastId, duration: 6000 }
       );
     } catch (err: any) {
-      toast.error(err.message || 'Publish failed');
+      toast.error(err.message || 'Publish failed', { id: toastId, duration: 8000 });
     } finally {
       setPublishing(false);
     }

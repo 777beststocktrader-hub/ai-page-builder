@@ -51,6 +51,7 @@ export const shopify = shopifyApi({
 });
 
 export const SHOPIFY_GRAPHQL_API_VERSION = process.env.SHOPIFY_API_VERSION || '2026-01';
+const SHOPIFY_GRAPHQL_TIMEOUT_MS = 30000;
 
 export async function adminGraphql<T>(
   shop: string,
@@ -58,14 +59,28 @@ export async function adminGraphql<T>(
   query: string,
   variables: Record<string, any> = {}
 ): Promise<T> {
-  const response = await fetch(`https://${shop}/admin/api/${SHOPIFY_GRAPHQL_API_VERSION}/graphql.json`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': accessToken,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SHOPIFY_GRAPHQL_TIMEOUT_MS);
+
+  let response: globalThis.Response;
+  try {
+    response = await fetch(`https://${shop}/admin/api/${SHOPIFY_GRAPHQL_API_VERSION}/graphql.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error('Shopify took too long to respond. Please try publishing again.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const data = await response.json() as { data?: T; errors?: any[] };
   if (!response.ok || data.errors?.length) {

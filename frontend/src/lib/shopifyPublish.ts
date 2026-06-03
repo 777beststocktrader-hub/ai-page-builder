@@ -3,6 +3,8 @@ import { exportPageToHtml } from './htmlExport';
 import { Redirect } from '@shopify/app-bridge/actions';
 import { getHostFromUrl, getShopForApi, getShopFromUrl, getShopifyAppBridge, getShopifySessionToken, isShopifyEmbedded } from './shopifyAppBridge';
 
+const PUBLISH_TIMEOUT_MS = 45000;
+
 function openShopifyReconnect(authUrl: string): void {
   const app = getShopifyAppBridge();
 
@@ -32,15 +34,28 @@ export async function publishToShopify(
   const shop = getShopForApi();
   if (!shop && !token) throw new Error('No Shopify store connected. Open PageGenie from Shopify admin first.');
   const host = getHostFromUrl();
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), PUBLISH_TIMEOUT_MS);
 
-  const res = await fetch('/api/shopify/publish', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ shop, host, pageTitle: page.title, html }),
-  });
+  let res: Response;
+  try {
+    res = await fetch('/api/shopify/publish', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ shop, host, pageTitle: page.title, html }),
+      signal: controller.signal,
+    });
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error('Publishing is taking too long. Please reconnect Shopify or try again in a moment.');
+    }
+    throw new Error('Could not reach Shopify publish server. Please try again.');
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   const data = await res.json() as {
     success: boolean;

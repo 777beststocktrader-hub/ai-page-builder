@@ -3,6 +3,23 @@ import { getSessionToken } from '@shopify/app-bridge/utilities';
 
 let appBridge: ClientApplication | null = null;
 const SHOPIFY_STORE_STORAGE_KEY = 'ai-pb-shopify-store';
+const SESSION_TOKEN_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error('Shopify session token timed out')), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
+}
 
 function getShopifyApiKey(): string {
   const envKey = ((import.meta as any).env?.VITE_SHOPIFY_API_KEY || '').trim();
@@ -59,7 +76,7 @@ export async function getShopifySessionToken(): Promise<string | null> {
   const shopifyGlobal = (window as any).shopify;
   if (shopifyGlobal?.idToken) {
     try {
-      return await shopifyGlobal.idToken();
+      return await withTimeout(shopifyGlobal.idToken(), SESSION_TOKEN_TIMEOUT_MS);
     } catch {
       // Fall back to the legacy package path below.
     }
@@ -69,7 +86,7 @@ export async function getShopifySessionToken(): Promise<string | null> {
   if (!app) return null;
 
   try {
-    return await getSessionToken(app);
+    return await withTimeout(getSessionToken(app), SESSION_TOKEN_TIMEOUT_MS);
   } catch {
     return null;
   }
