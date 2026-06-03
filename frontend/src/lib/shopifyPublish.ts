@@ -3,7 +3,7 @@ import { exportPageToHtml } from './htmlExport';
 import { Redirect } from '@shopify/app-bridge/actions';
 import { getHostFromUrl, getShopForApi, getShopFromUrl, getShopifyAppBridge, getShopifySessionToken, isShopifyEmbedded } from './shopifyAppBridge';
 
-const PUBLISH_TIMEOUT_MS = 45000;
+const PUBLISH_TIMEOUT_MS = 90000;
 
 function openShopifyReconnect(authUrl: string): void {
   const app = getShopifyAppBridge();

@@ -165,6 +165,8 @@ export default function App() {
   useEffect(() => {
     const shop = new URLSearchParams(window.location.search).get('shop');
     if (shop) saveShopifyCredentials(shop);
+    // Pre-warm the backend so Render's cold-start doesn't delay publish
+    fetch('/api/health').catch(() => {});
   }, []);
 
   // Load billing status on mount and after Shopify billing approval.
