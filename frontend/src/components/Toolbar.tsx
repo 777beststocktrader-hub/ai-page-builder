@@ -60,7 +60,7 @@ export default function Toolbar() {
   };
 
   const handlePublishWeb = async () => {
-    if (page.blocks.length === 0) { toast.error('Add sections before publishing'); return; }
+    if (page.blocks.length === 0) { toast.error('Add sections before creating a preview link'); return; }
     setPublishingWeb(true);
     try {
       const html = exportPageToHtml(page, theme);
@@ -68,11 +68,11 @@ export default function Toolbar() {
       setWebUrl(url);
       await navigator.clipboard.writeText(url);
       toast.success(
-        <span>Page live! <a href={url} target="_blank" rel="noopener noreferrer" className="underline font-semibold">Open →</a> (URL copied)</span>,
+        <span>Preview link copied. <a href={url} target="_blank" rel="noopener noreferrer" className="underline font-semibold">Open preview</a></span>,
         { duration: 8000 }
       );
     } catch {
-      toast.error('Publish failed');
+      toast.error('Could not create preview link');
     }
     setPublishingWeb(false);
   };
@@ -387,11 +387,11 @@ export default function Toolbar() {
           Import
         </button>
 
-        {/* Publish to Web */}
+        {/* Preview link tools */}
         <div className="w-px h-5 bg-slate-700 mx-1" />
         <button
           onClick={() => setShowMySites(true)}
-          title="My published websites"
+          title="Saved preview links"
           className="p-2 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all"
         >
           <Globe size={16} />
@@ -401,17 +401,17 @@ export default function Toolbar() {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-md text-sm font-medium transition-all"
           >
             <CheckCircle size={14} />
-            <span className="hidden sm:block">Live</span>
+            <span className="hidden sm:block">Preview</span>
           </a>
         ) : (
           <button
             onClick={handlePublishWeb}
             disabled={publishingWeb}
-            title="Save page as a live website"
+            title="Create a preview link"
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-sm font-medium transition-all"
           >
             {publishingWeb ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
-            <span className="hidden sm:block">{publishingWeb ? 'Saving…' : 'Save to Web'}</span>
+            <span className="hidden sm:block">{publishingWeb ? 'Creating...' : 'Preview link'}</span>
           </button>
         )}
         <div className="w-px h-5 bg-slate-700 mx-1" />
@@ -502,17 +502,17 @@ export default function Toolbar() {
               <div className="h-px bg-slate-700 my-1" />
               <button onClick={() => setShowMySites(true)}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
-                <Globe size={13} /> My published sites
+                <Globe size={13} /> Saved preview links
               </button>
               {webUrl ? (
                 <a href={webUrl} target="_blank" rel="noopener noreferrer"
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-300 hover:text-white hover:bg-emerald-900/50 rounded-lg">
-                  <CheckCircle size={13} /> Open web page
+                  <CheckCircle size={13} /> Open preview link
                 </a>
               ) : (
                 <button onClick={handlePublishWeb} disabled={publishingWeb || page.blocks.length === 0}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-300 hover:text-white hover:bg-emerald-900/50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
-                  {publishingWeb ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />} Save as web page
+                  {publishingWeb ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />} Create preview link
                 </button>
               )}
             </div>
@@ -527,18 +527,18 @@ export default function Toolbar() {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-md text-sm font-medium transition-all"
           >
             <CheckCircle size={14} />
-            View Live
+            View Shopify Page
           </a>
         ) : (
           <button
             onClick={handlePublishToShopify}
             disabled={publishing}
-            title={shopifyCreds ? `Publish to ${shopifyCreds.shop}` : 'Connect a store to publish'}
+            title={shopifyCreds ? `Publish to ${shopifyCreds.shop}` : 'Connect a store to publish to Shopify'}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-sm font-medium transition-all"
           >
             {publishing ? <Loader2 size={14} className="animate-spin" /> : <ShoppingBag size={14} />}
             <span className="hidden sm:block">
-              {publishing ? 'Publishing…' : 'Publish'}
+              {publishing ? 'Publishing...' : 'Publish to Shopify'}
             </span>
           </button>
         )}
