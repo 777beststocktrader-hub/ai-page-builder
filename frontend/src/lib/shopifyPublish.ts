@@ -1,6 +1,27 @@
 import { Page, Theme } from '../types';
 import { exportPageToHtml } from './htmlExport';
-import { getHostFromUrl, getShopForApi, getShopFromUrl, getShopifySessionToken, isShopifyEmbedded } from './shopifyAppBridge';
+import { Redirect } from '@shopify/app-bridge/actions';
+import { getHostFromUrl, getShopForApi, getShopFromUrl, getShopifyAppBridge, getShopifySessionToken, isShopifyEmbedded } from './shopifyAppBridge';
+
+function openShopifyReconnect(authUrl: string): void {
+  const app = getShopifyAppBridge();
+
+  if (app) {
+    Redirect.create(app).dispatch(Redirect.Action.REMOTE, authUrl);
+    return;
+  }
+
+  try {
+    if (window.top && window.top !== window) {
+      window.open(authUrl, '_top');
+      return;
+    }
+  } catch {
+    // Fall back to same-window navigation below.
+  }
+
+  window.location.assign(authUrl);
+}
 
 export async function publishToShopify(
   page: Page,
@@ -33,15 +54,8 @@ export async function publishToShopify(
   if (!data.success) {
     if (data.authUrl) {
       const authUrl = new URL(data.authUrl, window.location.origin).toString();
-      try {
-        if (window.top && window.top !== window) {
-          window.top.location.href = authUrl;
-        } else {
-          window.location.href = authUrl;
-        }
-      } catch {
-        window.location.href = authUrl;
-      }
+      openShopifyReconnect(authUrl);
+      throw new Error('Shopify needs to reconnect before publishing. Opening the reconnect page now.');
     }
     throw new Error(data.error || 'Publish failed');
   }
