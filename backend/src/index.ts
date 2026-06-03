@@ -13,6 +13,7 @@ import publishRouter from './routes/publish';
 import billingRouter from './routes/billing';
 import { getLocalBillingStatus, getShopifyBillingStatus } from './billing';
 import { adminGraphql, getSessionForShop, getShopFromSessionToken } from './shopify';
+import { initDb } from './db';
 
 const SUBSCRIBERS_FILE = path.join(__dirname, '../../data/subscribers.json');
 type SubscriberRecord = { email: string; shop: string | null; subscribedAt: string };
@@ -1684,6 +1685,8 @@ app.get('*', (_req, res) => {
     res.type('html').send(html.replace(/%VITE_SHOPIFY_API_KEY%/g, shopifyApiKey));
   });
 });
+
+initDb().catch((err) => console.error('DB init failed (using file fallback):', err.message));
 
 app.listen(PORT, () => {
   console.log(`\n🚀 PageGenie running on http://localhost:${PORT}`);

@@ -4,6 +4,7 @@ import { Request } from 'express';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { getDb } from './db';
 
 // ── File-based session persistence ────────────────────────────────────────
 // Survives Render restarts (in-memory was wiped on every cold start).
@@ -143,25 +144,54 @@ export function getShopFromSessionToken(req: Request): string | null {
 
 export const sessionStorage = {
   storeSession: async (session: Session): Promise<boolean> => {
-    sessionMap.set(session.id, session);
-    saveSessions(sessionMap);
+    const db = getDb();
+    if (db) {
+      await db.query(
+        `INSERT INTO sessions (id, shop, data) VALUES ($1, $2, $3)
+         ON CONFLICT (id) DO UPDATE SET shop = $2, data = $3`,
+        [session.id, session.shop, JSON.stringify(session)]
+      );
+    } else {
+      sessionMap.set(session.id, session);
+      saveSessions(sessionMap);
+    }
     console.log(`Session saved for shop: ${session.shop}`);
     return true;
   },
   loadSession: async (id: string): Promise<Session | undefined> => {
+    const db = getDb();
+    if (db) {
+      const { rows } = await db.query('SELECT data FROM sessions WHERE id = $1', [id]);
+      return rows[0] ? new Session(rows[0].data) : undefined;
+    }
     return sessionMap.get(id);
   },
   deleteSession: async (id: string): Promise<boolean> => {
-    sessionMap.delete(id);
-    saveSessions(sessionMap);
+    const db = getDb();
+    if (db) {
+      await db.query('DELETE FROM sessions WHERE id = $1', [id]);
+    } else {
+      sessionMap.delete(id);
+      saveSessions(sessionMap);
+    }
     return true;
   },
   deleteSessions: async (ids: string[]): Promise<boolean> => {
-    ids.forEach((id) => sessionMap.delete(id));
-    saveSessions(sessionMap);
+    const db = getDb();
+    if (db) {
+      await db.query('DELETE FROM sessions WHERE id = ANY($1)', [ids]);
+    } else {
+      ids.forEach((id) => sessionMap.delete(id));
+      saveSessions(sessionMap);
+    }
     return true;
   },
   findSessionsByShop: async (shop: string): Promise<Session[]> => {
+    const db = getDb();
+    if (db) {
+      const { rows } = await db.query('SELECT data FROM sessions WHERE shop = $1', [shop]);
+      return rows.map((r) => new Session(r.data));
+    }
     return Array.from(sessionMap.values()).filter((s) => s.shop === shop);
   },
 };
