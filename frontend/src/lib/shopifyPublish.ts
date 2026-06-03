@@ -28,9 +28,9 @@ export async function publishToShopify(
   theme?: Theme
 ): Promise<{ url: string; title: string; adminUrl?: string }> {
   const html = exportPageToHtml(page, theme);
-  const shop = getShopForApi();
-  if (!shop) throw new Error('No Shopify store connected. Install PageGenie from Shopify admin first.');
   const token = await getShopifySessionToken();
+  const shop = getShopForApi();
+  if (!shop && !token) throw new Error('No Shopify store connected. Open PageGenie from Shopify admin first.');
   const host = getHostFromUrl();
 
   const res = await fetch('/api/shopify/publish', {
