@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, ShoppingBag, Loader2, Sparkles, Search, Tag, AlertCircle, RefreshCw, ExternalLink, Star } from 'lucide-react';
+import { X, ShoppingBag, Loader2, Sparkles, Search, Tag, AlertCircle, RefreshCw, ExternalLink, Star, Clock } from 'lucide-react';
 import { fetchShopifyProducts, generatePageFromProduct, ImportedReview, ShopifyProduct } from '../lib/api';
 import { getShopifyCredentials } from './ShopifyConnectModal';
 import { usePageStore } from '../store/pageStore';
@@ -11,6 +11,7 @@ function getShopFromUrl(): string | null {
 }
 
 const REVIEW_STORAGE_KEY = 'pagegenie-aliexpress-reviews';
+const BUILD_ESTIMATE_SECONDS = 120;
 
 function sanitizeEnglishReviewText(value: string): string {
   return value
@@ -91,6 +92,13 @@ function parseAliExpressReviews(text: string): ImportedReview[] {
     .slice(0, 15);
 }
 
+function formatBuildTime(seconds: number): string {
+  const safeSeconds = Math.max(0, seconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
 const DEMO_PRODUCT_IMAGE = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="700" viewBox="0 0 900 700">
   <rect width="900" height="700" rx="48" fill="#f8fafc"/>
@@ -128,6 +136,8 @@ export default function ProductPickerModal({ onClose }: Props) {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<number | 'auto' | null>(null);
+  const [buildStartedAt, setBuildStartedAt] = useState<number | null>(null);
+  const [buildTick, setBuildTick] = useState(Date.now());
   const [error, setError] = useState('');
   const [reinstallUrl, setReinstallUrl] = useState('');
   const [query, setQuery] = useState('');
@@ -140,6 +150,21 @@ export default function ProductPickerModal({ onClose }: Props) {
   const isAnyGenerating = generating !== null;
   const importedReviews = parseAliExpressReviews(reviewInput);
   const photoReviewCount = importedReviews.filter((review) => review.imageUrl).length;
+  const elapsedSeconds = buildStartedAt ? Math.floor((buildTick - buildStartedAt) / 1000) : 0;
+  const secondsLeft = Math.max(0, BUILD_ESTIMATE_SECONDS - elapsedSeconds);
+  const buildProgress = Math.min(100, Math.max(8, Math.round((elapsedSeconds / BUILD_ESTIMATE_SECONDS) * 100)));
+  const activeProduct = typeof generating === 'number'
+    ? [...products, DEMO_PRODUCT].find((product) => product.id === generating)
+    : null;
+  const activeProductTitle = generating === 'auto'
+    ? 'Choosing the best product'
+    : activeProduct?.title || 'your product';
+
+  useEffect(() => {
+    if (!isAnyGenerating) return;
+    const timer = window.setInterval(() => setBuildTick(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [isAnyGenerating]);
 
   useEffect(() => {
     if (!shop) {
@@ -168,6 +193,8 @@ export default function ProductPickerModal({ onClose }: Props) {
 
   const buildPageForProduct = async (product: ShopifyProduct) => {
     setGenerating(product.id);
+    setBuildStartedAt(Date.now());
+    setBuildTick(Date.now());
     try {
       const { blocks, tagline } = await generatePageFromProduct(product, shop, importedReviews);
       if (blocks.length === 0) throw new Error('No blocks generated');
@@ -192,12 +219,15 @@ export default function ProductPickerModal({ onClose }: Props) {
       toast.error(err.message || 'Page generation failed');
     } finally {
       setGenerating(null);
+      setBuildStartedAt(null);
     }
   };
 
   const autoPickBest = async () => {
     if (products.length === 0) return;
     setGenerating('auto');
+    setBuildStartedAt(Date.now());
+    setBuildTick(Date.now());
     const scored = products
       .map((p) => ({
         product: p,
@@ -244,7 +274,7 @@ export default function ProductPickerModal({ onClose }: Props) {
             <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center">
               <div className="flex flex-col items-center gap-2">
                 <Loader2 size={20} className="animate-spin text-indigo-400" />
-                <p className="text-xs text-indigo-300 font-medium">Building page...</p>
+                <p className="text-xs text-indigo-300 font-medium">One moment please...</p>
               </div>
             </div>
           )}
@@ -284,6 +314,52 @@ export default function ProductPickerModal({ onClose }: Props) {
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={!isAnyGenerating ? onClose : undefined} />
       <div className="relative bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
+        {isAnyGenerating && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/82 px-4 backdrop-blur-md">
+            <div className="w-full max-w-md rounded-2xl border border-indigo-400/30 bg-slate-900 p-6 text-center shadow-2xl shadow-indigo-950/40">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-400/30 bg-indigo-500/15 text-indigo-200">
+                <Loader2 size={24} className="animate-spin" />
+              </div>
+              <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-indigo-300">AI page builder</p>
+              <h3 className="mt-2 text-2xl font-black leading-tight text-white">
+                One moment please, we are building your page.
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                PageGenie is writing sections, arranging product images, adding reviews, and preparing the page for Shopify.
+              </p>
+              <div className="mt-5 rounded-xl border border-slate-700 bg-slate-950 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3 text-left">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-white">{activeProductTitle}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                      {secondsLeft > 0 ? 'Estimated time remaining' : 'Almost done'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-full bg-indigo-500/15 px-3 py-1.5 text-sm font-black text-indigo-200">
+                    <Clock size={13} />
+                    {secondsLeft > 0 ? formatBuildTime(secondsLeft) : 'Finalizing'}
+                  </div>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-400 via-cyan-300 to-emerald-300 transition-all duration-700"
+                    style={{ width: `${secondsLeft > 0 ? buildProgress : 100}%` }}
+                  />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-left text-[11px] font-bold text-slate-400">
+                  {['Hero section', 'Benefits', 'Reviews', 'FAQ'].map((item) => (
+                    <div key={item} className="rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-2">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-4 text-xs leading-5 text-slate-500">
+                Please keep this window open. Most pages finish in about 1-2 minutes.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-green-600/20 border border-green-600/40 flex items-center justify-center">
