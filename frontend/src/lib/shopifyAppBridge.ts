@@ -4,6 +4,14 @@ import { getSessionToken } from '@shopify/app-bridge/utilities';
 let appBridge: ClientApplication | null = null;
 const SHOPIFY_STORE_STORAGE_KEY = 'ai-pb-shopify-store';
 
+function getShopifyApiKey(): string {
+  const envKey = ((import.meta as any).env?.VITE_SHOPIFY_API_KEY || '').trim();
+  if (envKey) return envKey;
+
+  const metaKey = document.querySelector<HTMLMetaElement>('meta[name="shopify-api-key"]')?.content?.trim() || '';
+  return metaKey.startsWith('%') ? '' : metaKey;
+}
+
 export function getShopFromUrl(): string {
   return new URLSearchParams(window.location.search).get('shop') || '';
 }
@@ -33,7 +41,7 @@ export function isShopifyEmbedded(): boolean {
 
 export function getShopifyAppBridge(): ClientApplication | null {
   const host = getHostFromUrl();
-  const apiKey = ((import.meta as any).env?.VITE_SHOPIFY_API_KEY || '').trim();
+  const apiKey = getShopifyApiKey();
   if (!host || !apiKey) return null;
 
   if (!appBridge) {
