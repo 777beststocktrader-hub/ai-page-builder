@@ -6,7 +6,6 @@ import toast from 'react-hot-toast';
 const FEATURES = [
   'Unlimited AI page generation',
   'Generate pages from your products',
-  'AI content polish and rewriting',
   'Publish to Shopify and web hosting',
   'A/B headline testing',
   'Page translation',

@@ -93,15 +93,6 @@ export async function importFromUrl(
   return { pageGoal: data.pageGoal || '', companyName: data.companyName || '', tagline: data.tagline || '' };
 }
 
-export async function polishPage(
-  blocks: Array<{ type: string; data: Record<string, any> }>,
-  pageGoal?: string,
-  tone?: string
-): Promise<Array<{ type: string; data: Record<string, any> }>> {
-  const { data } = await api.post('/ai/polish-page', { blocks, pageGoal, tone: tone || 'marketing' });
-  if (!data.success) throw new Error(data.error || 'Polish failed');
-  return data.blocks;
-}
 
 export async function translatePage(
   blocks: Array<{ type: string; data: Record<string, any> }>,

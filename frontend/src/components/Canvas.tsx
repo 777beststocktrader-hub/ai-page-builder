@@ -21,7 +21,7 @@ import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
 import { Block, BlockStyle } from '../types';
 import BLOCK_DEFS from '../blocks/blockDefs';
-import { generateBlockContent, generateFullPage, polishPage, translatePage } from '../lib/api';
+import { generateBlockContent, generateFullPage, translatePage } from '../lib/api';
 import { getShopifyCredentials } from './ShopifyConnectModal';
 import toast from 'react-hot-toast';
 
@@ -1578,7 +1578,6 @@ const LANGUAGES = [
 
 export default function Canvas() {
   const { page, selectedBlockId, selectBlock, moveBlock, addBlock, updateBlock, pageGoal, theme, previewMode, setPreviewMode, setPageGoal, setPageTitle, newProject } = usePageStore();
-  const [polishing, setPolishing] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showProductPicker, setShowProductPicker] = useState(false);
@@ -1601,7 +1600,6 @@ export default function Canvas() {
     });
     if (changed || isSamplePage) setWhiteSampleApplied(true);
   }, [page.blocks, page.title, pageGoal, updateBlock, whiteSampleApplied]);
-  const [polishTone, setPolishTone] = useState<'marketing' | 'professional' | 'casual' | 'playful'>('marketing');
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -1612,22 +1610,6 @@ export default function Canvas() {
     if (over && active.id !== over.id) {
       moveBlock(active.id as string, over.id as string);
     }
-  };
-
-  const handlePolish = async () => {
-    if (polishing || page.blocks.length === 0) return;
-    setPolishing(true);
-    try {
-      const input = page.blocks.map(b => ({ type: b.type, data: b.data }));
-      const polished = await polishPage(input, pageGoal || page.title, polishTone);
-      polished.forEach((pb, i) => {
-        if (page.blocks[i]) updateBlock(page.blocks[i].id, pb.data);
-      });
-      toast.success(`Page polished! ✨ All ${page.blocks.length} sections rewritten.`);
-    } catch (err: any) {
-      toast.error(err.message || 'Polish failed');
-    }
-    setPolishing(false);
   };
 
   const handleTranslate = async (lang: string) => {
@@ -1717,33 +1699,11 @@ export default function Canvas() {
             </div>
           </div>
           <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-            {/* Polish Page */}
-            <select
-              value={polishTone}
-              onChange={e => setPolishTone(e.target.value as any)}
-              disabled={polishing || translating}
-              className="py-1 px-1.5 bg-slate-700 text-slate-300 text-xs rounded-md border border-slate-600 focus:outline-none focus:border-purple-500 disabled:opacity-50"
-              title="Tone for Polish Page"
-            >
-              <option value="marketing">Marketing</option>
-              <option value="professional">Professional</option>
-              <option value="casual">Casual</option>
-              <option value="playful">Playful</option>
-            </select>
-            <button
-              onClick={handlePolish}
-              disabled={polishing || translating}
-              title="Polish Page — AI rewrites all sections for consistent, compelling copy"
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded-md transition-all"
-            >
-              {polishing ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-              {polishing ? 'Polishing…' : 'Polish Page'}
-            </button>
             {/* Translate */}
             <div className="relative">
               <button
                 onClick={() => setShowLangPicker(!showLangPicker)}
-                disabled={polishing || translating}
+                disabled={translating}
                 title="Translate all content to another language"
                 className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 text-xs font-medium rounded-md transition-all border border-slate-600"
               >
@@ -1785,7 +1745,7 @@ export default function Canvas() {
                   <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
                     <button
                       onClick={handleStartDemoPage}
-                      disabled={demoGenerating || polishing || translating}
+                      disabled={demoGenerating || translating}
                       className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
                     >
                       {demoGenerating ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
@@ -1793,7 +1753,7 @@ export default function Canvas() {
                     </button>
                     <button
                       onClick={() => setShowProductPicker(true)}
-                      disabled={demoGenerating || polishing || translating}
+                      disabled={demoGenerating || translating}
                       className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:border-green-300 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
                     >
                       <ShoppingBag size={14} className="text-green-500" />
@@ -1868,7 +1828,7 @@ export default function Canvas() {
                   </p>
                   <button
                     onClick={(event) => { event.stopPropagation(); handleStartDemoPage(); }}
-                    disabled={demoGenerating || polishing || translating}
+                    disabled={demoGenerating || translating}
                     className="mt-3 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 transition-all"
                   >
                     {demoGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
