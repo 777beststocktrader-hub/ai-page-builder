@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Sparkles, Loader2, Search, LayoutTemplate, List, EyeOff, ChevronUp, ChevronDown, Trash2, Link } from 'lucide-react';
+import { Plus, Sparkles, Loader2, Search, LayoutTemplate, List, EyeOff, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import BLOCK_DEFS from '../blocks/blockDefs';
 import { usePageStore } from '../store/pageStore';
-import { generateFullPage, generateBlockContent, importFromUrl } from '../lib/api';
+import { generateFullPage, generateBlockContent } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const CATEGORIES = ['Navigation', 'Hero', 'Content', 'Media', 'Social Proof', 'Conversion', 'Layout', 'Social', 'CTA', 'Footer'];
@@ -126,7 +126,7 @@ const LEGACY_PAGE_TEMPLATES = [
       { type: 'stats', overrides: { title: '', stats: [{ value: '25K+', label: 'Subscribers' }, { value: '200+', label: 'Issues Published' }, { value: '72%', label: 'Open Rate' }, { value: '4.9/5', label: 'Reader Rating' }] } },
       { type: 'features', overrides: { title: 'What You Get Every Sunday', features: [{ icon: '📰', title: 'Top Stories', description: 'The 5 most important stories of the week, curated and summarized for busy people.' }, { icon: '🔍', title: 'Deep Dives', description: 'One long-form analysis per week on the trend that matters most.' }, { icon: '🛠️', title: 'Tools & Resources', description: 'The best tools, templates, and frameworks discovered this week.' }, { icon: '💡', title: 'One Big Idea', description: 'A single counterintuitive idea to make you think differently.' }, { icon: '📊', title: 'Data Snapshot', description: 'Charts and stats that tell the story of what\'s happening in the world.' }, { icon: '🎙️', title: 'Creator Spotlight', description: 'An interview with a creator, founder, or expert building something interesting.' }] } },
       { type: 'testimonials', overrides: { title: 'What Readers Are Saying' } },
-      { type: 'comparison', overrides: { title: 'Why Read The Digest?', col1: 'Doom-scrolling News', col2: 'The Digest', rows: [{ feature: 'Time to feel informed', col1: '45 min of anxiety', col2: '5 focused minutes' }, { feature: 'Signal vs noise', col1: 'Mostly noise', col2: 'Only signal' }, { feature: 'Actionable insights', col1: 'Rarely', col2: 'Every issue' }, { feature: 'Cost', col1: 'Free (+ your sanity)', col2: 'Free forever' }] } },
+      { type: 'faq', overrides: { title: 'Common Questions', items: [{ question: 'How often do you publish?', answer: 'Every Sunday, without fail.' }, { question: 'Is it really free?', answer: 'Yes, always free. No credit card needed.' }, { question: 'Can I unsubscribe?', answer: 'One click, any time.' }, { question: 'What topics do you cover?', answer: 'Technology, business, and design — curated for clarity.' }] } },
       { type: 'newsletter', overrides: { headline: 'Join 25,000+ Readers This Sunday', subtext: 'Free forever. No spam. Unsubscribe with one click anytime.', btnText: 'Subscribe Now' } },
       { type: 'footer', overrides: { brand: 'The Digest', tagline: 'Ideas worth reading, every Sunday.' } },
     ],
@@ -215,9 +215,6 @@ export default function BlockLibrary() {
   const [search, setSearch] = useState('');
   const [generating, setGenerating] = useState(false);
   const [tab, setTab] = useState<'blocks' | 'templates' | 'outline'>('blocks');
-  const [importUrl, setImportUrl] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [showUrlImport, setShowUrlImport] = useState(false);
 
   const handleLoadTemplate = (template: typeof PAGE_TEMPLATES[0]) => {
     if (page.blocks.length > 0 && !confirm(`Replace current page with "${template.name}" template?`)) return;
@@ -262,26 +259,6 @@ export default function BlockLibrary() {
     } else {
       toast.success(`${def.label} added`);
     }
-  };
-
-  const handleImportUrl = async () => {
-    if (!importUrl.trim()) return;
-    setImporting(true);
-    const toastId = toast.loading('Extracting content from URL…');
-    try {
-      const { pageGoal: goal, companyName, tagline } = await importFromUrl(importUrl.trim());
-      if (goal) {
-        setPageGoal(goal);
-        toast.success(`Extracted: "${goal.slice(0, 60)}…"`, { id: toastId, duration: 4000 });
-        setShowUrlImport(false);
-        setImportUrl('');
-      } else {
-        toast.error('Could not extract page info', { id: toastId });
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'URL import failed', { id: toastId });
-    }
-    setImporting(false);
   };
 
   const handleGeneratePage = async () => {
@@ -361,39 +338,10 @@ export default function BlockLibrary() {
       {tab === 'blocks' && <>
       {/* AI Page Generator */}
       <div className="p-3 border-b border-slate-700">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
             <Sparkles size={11} className="text-indigo-400" />
             AI Page Generator
           </p>
-          <button
-            onClick={() => setShowUrlImport(!showUrlImport)}
-            title="Import page goal from website URL"
-            className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-all ${showUrlImport ? 'text-indigo-300 bg-indigo-900/40' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            <Link size={10} /> Import URL
-          </button>
-        </div>
-        {showUrlImport && (
-          <div className="mb-2 flex gap-1">
-            <input
-              type="url"
-              value={importUrl}
-              onChange={(e) => setImportUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleImportUrl(); }}
-              placeholder="https://yourwebsite.com"
-              className="flex-1 bg-slate-900 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-slate-600 focus:border-indigo-500 focus:outline-none placeholder-slate-600 min-w-0"
-            />
-            <button
-              onClick={handleImportUrl}
-              disabled={importing || !importUrl.trim()}
-              className="px-2.5 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs rounded-lg flex items-center gap-1 flex-shrink-0"
-            >
-              {importing ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-              {importing ? '' : 'Get'}
-            </button>
-          </div>
-        )}
         <textarea
           value={pageGoal}
           onChange={(e) => setPageGoal(e.target.value)}

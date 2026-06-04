@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2, Globe, Package, MoreHorizontal, Upload } from 'lucide-react';
+import { Undo2, Redo2, Eye, EyeOff, Download, Copy, ExternalLink, Monitor, Tablet, Smartphone, Pencil, ShoppingBag, Loader2, CheckCircle, Cloud, Layers, Settings, X, Sparkles, FolderOpen, Link, Unlink, Share2, History, RotateCcw, Trash2, Package, MoreHorizontal, Upload } from 'lucide-react';
 import ProjectsModal from './ProjectsModal';
 import ShopifyConnectModal, { getShopifyCredentials, clearShopifyCredentials, ShopifyCredentials } from './ShopifyConnectModal';
 import ProductPickerModal from './ProductPickerModal';
-import MySitesModal from './MySitesModal';
 import PageGenieLogo from './PageGenieLogo';
 import { usePageStore } from '../store/pageStore';
 import { downloadHtml, copyHtml, previewInNewTab, downloadZip, exportPageToHtml, exportPageJson, importPageJson } from '../lib/htmlExport';
 import { publishToShopify, isShopifyEmbedded } from '../lib/shopifyPublish';
-import { generatePageTitle, createShareLink, publishToWeb } from '../lib/api';
+import { generatePageTitle, createShareLink } from '../lib/api';
 import toast from 'react-hot-toast';
 
 export default function Toolbar() {
@@ -24,9 +23,6 @@ export default function Toolbar() {
   const [shopifyCreds, setShopifyCreds] = useState<ShopifyCredentials | null>(() => getShopifyCredentials());
   const [sharing, setSharing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [publishingWeb, setPublishingWeb] = useState(false);
-  const [webUrl, setWebUrl] = useState<string | null>(null);
-  const [showMySites, setShowMySites] = useState(false);
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
 
@@ -60,24 +56,6 @@ export default function Toolbar() {
     }
   };
 
-  const handlePublishWeb = async () => {
-    if (page.blocks.length === 0) { toast.error('Add sections before creating a preview link'); return; }
-    setPublishingWeb(true);
-    try {
-      const html = exportPageToHtml(page, theme);
-      const { url } = await publishToWeb(html, page.title);
-      setWebUrl(url);
-      await navigator.clipboard.writeText(url);
-      toast.success(
-        <span>Preview link copied. <a href={url} target="_blank" rel="noopener noreferrer" className="underline font-semibold">Open preview</a></span>,
-        { duration: 8000 }
-      );
-    } catch {
-      toast.error('Could not create preview link');
-    }
-    setPublishingWeb(false);
-  };
-
   const handleShare = async () => {
     if (page.blocks.length === 0) { toast.error('Add sections before sharing'); return; }
     setSharing(true);
@@ -99,7 +77,6 @@ export default function Toolbar() {
   return (
     <>
     {showProjects && <ProjectsModal onClose={() => setShowProjects(false)} />}
-    {showMySites && <MySitesModal onClose={() => setShowMySites(false)} />}
     {showProductPicker && <ProductPickerModal onClose={() => setShowProductPicker(false)} />}
     {showShopifyConnect && (
       <ShopifyConnectModal
@@ -329,96 +306,6 @@ export default function Toolbar() {
 
         <div className="w-px h-5 bg-slate-700 mx-1" />
 
-        <div className="hidden items-center gap-1">
-        <button
-          onClick={handleShare}
-          disabled={sharing}
-          title="Create shareable preview link (copies to clipboard)"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md text-sm font-medium transition-all disabled:opacity-50"
-        >
-          {sharing ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
-          <span className="hidden sm:block">Share</span>
-        </button>
-        <button
-          onClick={() => { copyHtml(page, theme); toast.success('HTML copied!'); }}
-          title="Copy HTML"
-          className="p-2 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all"
-        >
-          <Copy size={16} />
-        </button>
-        <button
-          onClick={() => previewInNewTab(page, theme)}
-          title="Preview in new tab"
-          className="p-2 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all"
-        >
-          <ExternalLink size={16} />
-        </button>
-        <div className="flex items-center">
-          <button
-            onClick={() => { downloadHtml(page, theme); toast.success('HTML exported!'); }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-l-md text-sm font-medium transition-all border-r border-slate-700"
-            title="Download as HTML"
-          >
-            <Download size={14} />
-            <span className="hidden sm:block">Export</span>
-          </button>
-          <button
-            onClick={() => { downloadZip(page, theme); toast.success('Bundling ZIP…'); }}
-            className="px-2 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-medium transition-all border-r border-slate-700"
-            title="Export as ZIP (HTML + images)"
-          >
-            .zip
-          </button>
-          <button
-            onClick={() => { exportPageJson(page, theme); toast.success('JSON exported!'); }}
-            className="px-2 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-r-md text-xs font-medium transition-all"
-            title="Export page data as JSON"
-          >
-            .json
-          </button>
-        </div>
-        <button
-          onClick={() => importPageJson((p, t) => {
-            usePageStore.getState().loadProject(p, '', t ?? usePageStore.getState().theme);
-            toast.success('Page imported!');
-          })}
-          title="Import page from JSON file"
-          className="p-2 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all text-xs font-medium"
-        >
-          Import
-        </button>
-
-        {/* Preview link tools */}
-        <div className="w-px h-5 bg-slate-700 mx-1" />
-        <button
-          onClick={() => setShowMySites(true)}
-          title="Saved preview links"
-          className="p-2 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-all"
-        >
-          <Globe size={16} />
-        </button>
-        {webUrl ? (
-          <a href={webUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-md text-sm font-medium transition-all"
-          >
-            <CheckCircle size={14} />
-            <span className="hidden sm:block">Preview</span>
-          </a>
-        ) : (
-          <button
-            onClick={handlePublishWeb}
-            disabled={publishingWeb}
-            title="Create a preview link"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-sm font-medium transition-all"
-          >
-            {publishingWeb ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
-            <span className="hidden sm:block">{publishingWeb ? 'Creating...' : 'Preview link'}</span>
-          </button>
-        )}
-        <div className="w-px h-5 bg-slate-700 mx-1" />
-
-        {/* Build from Product button — show when Shopify is connected */}
-        </div>
         {(shopifyCreds || inShopify) && (
           <button
             onClick={() => setShowProductPicker(true)}
@@ -500,22 +387,6 @@ export default function Toolbar() {
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
                 <Upload size={13} /> Import JSON
               </button>
-              <div className="h-px bg-slate-700 my-1" />
-              <button onClick={() => setShowMySites(true)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg">
-                <Globe size={13} /> Saved preview links
-              </button>
-              {webUrl ? (
-                <a href={webUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-300 hover:text-white hover:bg-emerald-900/50 rounded-lg">
-                  <CheckCircle size={13} /> Open preview link
-                </a>
-              ) : (
-                <button onClick={handlePublishWeb} disabled={publishingWeb || page.blocks.length === 0}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-300 hover:text-white hover:bg-emerald-900/50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">
-                  {publishingWeb ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />} Create preview link
-                </button>
-              )}
             </div>
           )}
         </div>

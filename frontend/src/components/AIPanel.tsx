@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2, Zap, Shuffle, FlaskConical, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Loader2, Zap, Shuffle } from 'lucide-react';
 import { Block, BlockDef, Tone } from '../types';
 import { usePageStore } from '../store/pageStore';
-import { generateBlockContent, abTestHeadlines } from '../lib/api';
+import { generateBlockContent } from '../lib/api';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -31,15 +31,6 @@ const QUICK_PROMPTS = [
   { label: 'Rewrite fresh', prompt: 'Completely rewrite with fresh copy and new angle' },
 ];
 
-interface ABVariant {
-  label: string;
-  angle: string;
-  headline: string;
-  subheadline: string;
-  primaryBtn: string;
-  improvement: string;
-}
-
 export default function AIPanel({ block, def }: Props) {
   const { updateBlock, pageGoal } = usePageStore();
   const [prompt, setPrompt] = useState('');
@@ -48,11 +39,6 @@ export default function AIPanel({ block, def }: Props) {
   const [open, setOpen] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<Record<string, any> | null>(null);
   const [language, setLanguage] = useState('English');
-  const [showAB, setShowAB] = useState(false);
-  const [abLoading, setAbLoading] = useState(false);
-  const [abVariants, setAbVariants] = useState<ABVariant[]>([]);
-
-  const isHero = block.type === 'hero';
 
   const handleGenerate = async (customPrompt?: string) => {
     const finalPrompt = customPrompt || prompt;
@@ -90,44 +76,6 @@ export default function AIPanel({ block, def }: Props) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleABTest = async () => {
-    setAbLoading(true);
-    setAbVariants([]);
-    try {
-      const variants = await abTestHeadlines(
-        block.data.headline || '',
-        block.data.subheadline,
-        block.data.primaryBtn,
-        pageGoal || undefined
-      );
-      setAbVariants(variants);
-      if (variants.length === 0) toast.error('No variants returned — try again');
-    } catch (err: any) {
-      toast.error(err.message || 'A/B test failed');
-    } finally {
-      setAbLoading(false);
-    }
-  };
-
-  const applyVariant = (variant: ABVariant) => {
-    setLastGenerated(block.data);
-    updateBlock(block.id, {
-      ...block.data,
-      headline: variant.headline,
-      subheadline: variant.subheadline,
-      primaryBtn: variant.primaryBtn,
-    });
-    toast.success(`Variant ${variant.label} applied!`);
-    setAbVariants([]);
-    setShowAB(false);
-  };
-
-  const variantColor: Record<string, string> = {
-    A: 'border-indigo-500/60 bg-indigo-950/40',
-    B: 'border-emerald-500/60 bg-emerald-950/30',
-    C: 'border-amber-500/60 bg-amber-950/30',
   };
 
   return (
@@ -216,65 +164,6 @@ export default function AIPanel({ block, def }: Props) {
               Variant
             </button>
           </div>
-
-          {/* A/B Headline Testing — hero blocks only */}
-          {isHero && (
-            <div className="border-t border-indigo-900/60 pt-2.5">
-              <button
-                onClick={() => setShowAB(!showAB)}
-                className="w-full flex items-center justify-between text-xs text-slate-400 hover:text-slate-200 transition-all"
-              >
-                <span className="flex items-center gap-1.5">
-                  <FlaskConical size={11} className="text-amber-400" />
-                  <span className="font-medium text-slate-300">A/B Headline Test</span>
-                  <span className="text-slate-600">3 variants</span>
-                </span>
-                {showAB ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-              </button>
-
-              {showAB && (
-                <div className="mt-2 space-y-2">
-                  <button
-                    onClick={handleABTest}
-                    disabled={abLoading || !block.data.headline}
-                    className="w-full flex items-center justify-center gap-2 py-2 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-lg transition-all"
-                  >
-                    {abLoading ? <Loader2 size={12} className="animate-spin" /> : <FlaskConical size={12} />}
-                    {abLoading ? 'Generating variants…' : 'Generate 3 A/B Variants'}
-                  </button>
-
-                  {abVariants.length > 0 && (
-                    <div className="space-y-2 mt-1">
-                      <p className="text-xs text-slate-500">Click a variant to apply it:</p>
-                      {abVariants.map((v) => (
-                        <div
-                          key={v.label}
-                          className={`rounded-lg border p-2.5 cursor-pointer hover:opacity-90 transition-all ${variantColor[v.label] || 'border-slate-600 bg-slate-800/40'}`}
-                          onClick={() => applyVariant(v)}
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <span className="text-xs font-bold text-slate-300">Variant {v.label}</span>
-                            <span className="text-xs text-slate-500 italic truncate max-w-[120px]">{v.angle}</span>
-                          </div>
-                          <p className="text-xs font-semibold text-white mb-0.5">{v.headline}</p>
-                          {v.subheadline && <p className="text-xs text-slate-400 mb-1 line-clamp-2">{v.subheadline}</p>}
-                          {v.primaryBtn && (
-                            <span className="inline-block text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                              CTA: {v.primaryBtn}
-                            </span>
-                          )}
-                          <p className="text-xs text-emerald-400 mt-1.5 flex items-start gap-1">
-                            <CheckCircle2 size={10} className="mt-0.5 flex-shrink-0" />
-                            {v.improvement}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
           {lastGenerated && (
             <button

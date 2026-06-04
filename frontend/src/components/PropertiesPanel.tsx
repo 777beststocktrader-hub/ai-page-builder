@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Maximize2, Lock, Unlock, Wand2, Share2 } from 'lucide-react';
-import { generateSeoDescription, analyzePageConversions, generateBrandPalette } from '../lib/api';
+import { Trash2, Copy, ChevronUp, ChevronDown, Plus, X, ChevronRight, Palette, Type, Search, Upload, Loader2, Eye, EyeOff, Sparkles, CheckCircle, Maximize2, Lock, Unlock, Share2 } from 'lucide-react';
+import { generateSeoDescription } from '../lib/api';
 import { getClientId } from '../lib/billing';
 import { getShopifySessionToken } from '../lib/shopifyAppBridge';
 
@@ -410,25 +410,8 @@ function PageQualityBadges({ page }: { page: import('../types').Page }) {
 
 function EmptyState() {
   const { theme, setTheme, page, setPageDescription, pageGoal, applyBrandColor } = usePageStore();
-  const [activeTab, setActiveTab] = useState<'theme' | 'seo' | 'analyze'>('theme');
+  const [activeTab, setActiveTab] = useState<'theme' | 'seo'>('theme');
   const [genSeo, setGenSeo] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<{ score: number; tips: { issue: string; fix: string; priority: string }[]; missing: string[] } | null>(null);
-  const [paletteDesc, setPaletteDesc] = useState('');
-  const [paletteLoading, setPaletteLoading] = useState(false);
-  const [palettes, setPalettes] = useState<{ name: string; primaryColor: string; font: string; rationale: string }[]>([]);
-
-  const handleGeneratePalette = async () => {
-    if (!paletteDesc.trim()) return;
-    setPaletteLoading(true);
-    try {
-      const result = await generateBrandPalette(paletteDesc.trim());
-      setPalettes(result);
-    } catch {
-      // fail silently
-    }
-    setPaletteLoading(false);
-  };
 
   return (
     <div className="flex flex-col h-full overflow-y-auto scrollbar-thin">
@@ -438,11 +421,10 @@ function EmptyState() {
         <p className="text-slate-500 text-xs">Or add blocks from the left panel</p>
       </div>
 
-      <div className="mx-3 mb-3 grid grid-cols-3 gap-1 rounded-lg bg-slate-900/70 p-1 border border-slate-700">
+      <div className="mx-3 mb-3 grid grid-cols-2 gap-1 rounded-lg bg-slate-900/70 p-1 border border-slate-700">
         {([
           ['theme', 'Theme'],
           ['seo', 'SEO'],
-          ['analyze', 'Analyze'],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -454,7 +436,6 @@ function EmptyState() {
         ))}
       </div>
 
-      {activeTab === 'analyze' && <PageQualityBadges page={page} />}
       {activeTab === 'seo' && <LiveSeoScore page={page} />}
 
       {/* Theme Presets */}
@@ -518,48 +499,6 @@ function EmptyState() {
           )}
         </div>
 
-        {/* AI Brand Palette Generator */}
-        <div className="mt-3 pt-3 border-t border-slate-700">
-          <p className="text-xs text-slate-500 mb-2 flex items-center gap-1.5">
-            <Wand2 size={10} className="text-purple-400" />
-            AI Brand Palette
-          </p>
-          <div className="flex gap-1.5">
-            <input
-              type="text"
-              value={paletteDesc}
-              onChange={(e) => setPaletteDesc(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleGeneratePalette(); }}
-              placeholder="e.g. luxury spa, tech startup..."
-              className="flex-1 bg-slate-900 text-slate-200 text-xs px-2 py-1.5 rounded border border-slate-700 focus:border-purple-500 focus:outline-none placeholder-slate-600 min-w-0"
-            />
-            <button
-              onClick={handleGeneratePalette}
-              disabled={paletteLoading || !paletteDesc.trim()}
-              className="px-2.5 py-1.5 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white text-xs rounded flex items-center gap-1 flex-shrink-0 transition-all"
-            >
-              {paletteLoading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-            </button>
-          </div>
-          {palettes.length > 0 && (
-            <div className="mt-2 space-y-1.5">
-              {palettes.map((p) => (
-                <button
-                  key={p.name}
-                  onClick={() => { setTheme({ ...theme, primaryColor: p.primaryColor, font: p.font }); }}
-                  className="w-full flex items-center gap-2 p-2 rounded-lg border border-slate-700 hover:border-purple-500 hover:bg-purple-950/30 transition-all text-left group"
-                >
-                  <div className="w-6 h-6 rounded-md flex-shrink-0 shadow-sm" style={{ backgroundColor: p.primaryColor }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-200 group-hover:text-white">{p.name}</p>
-                    <p className="text-xs text-slate-500 truncate">{p.rationale}</p>
-                  </div>
-                  <span className="text-xs text-slate-600 font-mono flex-shrink-0">{p.primaryColor}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Social Media Preview */}
@@ -658,58 +597,6 @@ function EmptyState() {
           />
           <p className="text-xs text-slate-600 mt-1">{(page.description || '').length}/160 chars</p>
         </div>
-      </div>
-
-      {/* Conversion Rate Analysis */}
-      <div className={`${activeTab === 'analyze' ? '' : 'hidden'} mx-3 mb-3 p-3 rounded-xl bg-slate-900/50 border border-slate-700`}>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <TrendingUp size={11} className="text-green-400" />
-            CRO Analysis
-          </p>
-          <button
-            onClick={async () => {
-              if (page.blocks.length === 0) return;
-              setAnalyzing(true);
-              try {
-                const result = await analyzePageConversions(
-                  pageGoal || page.title,
-                  page.blocks.map((b) => b.type)
-                );
-                setAnalysis(result);
-              } catch {}
-              setAnalyzing(false);
-            }}
-            disabled={analyzing || page.blocks.length === 0}
-            className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-all"
-          >
-            {analyzing ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-            {analyzing ? 'Analyzing…' : 'Analyze'}
-          </button>
-        </div>
-        {analysis ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all" style={{ width: `${analysis.score}%` }} />
-              </div>
-              <span className={`text-xs font-bold ${analysis.score >= 75 ? 'text-green-400' : analysis.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>{analysis.score}/100</span>
-            </div>
-            {analysis.tips.map((tip, i) => (
-              <div key={i} className={`p-2 rounded-lg text-xs border ${tip.priority === 'high' ? 'bg-red-950/30 border-red-800/40' : tip.priority === 'medium' ? 'bg-yellow-950/30 border-yellow-800/40' : 'bg-slate-800/50 border-slate-700'}`}>
-                <p className={`font-semibold mb-0.5 flex items-center gap-1 ${tip.priority === 'high' ? 'text-red-400' : tip.priority === 'medium' ? 'text-yellow-400' : 'text-slate-400'}`}>
-                  {tip.priority === 'high' ? <AlertTriangle size={9} /> : <CheckCircle size={9} />} {tip.issue}
-                </p>
-                <p className="text-slate-400">{tip.fix}</p>
-              </div>
-            ))}
-            {analysis.missing.length > 0 && (
-              <p className="text-xs text-slate-500">Missing: {analysis.missing.join(', ')}</p>
-            )}
-          </div>
-        ) : (
-          <p className="text-xs text-slate-600">{page.blocks.length === 0 ? 'Add sections first' : 'Click Analyze to get conversion tips'}</p>
-        )}
       </div>
 
       {/* Shortcuts */}

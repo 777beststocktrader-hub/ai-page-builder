@@ -1628,8 +1628,6 @@ export default function Canvas() {
     setTranslating(false);
   };
 
-  const conversion = getConversionChecks(page.blocks);
-
   const handleAddConversionSection = (type: string) => {
     const def = BLOCK_DEFS.find((blockDef) => blockDef.type === type);
     if (!def) return;
@@ -1761,14 +1759,6 @@ export default function Canvas() {
                     </button>
                   </div>
                 </div>
-                <div className="rounded-2xl bg-indigo-50 border border-indigo-100 px-4 py-3 min-w-[124px]">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-500">Score</p>
-                  <div className="flex items-end gap-1">
-                    <span className="text-3xl font-black text-slate-900 leading-none">{conversion.score}</span>
-                    <span className="text-xs font-bold text-slate-400 mb-1">/100</span>
-                  </div>
-                  <p className="text-xs font-semibold text-indigo-700 mt-1">{conversion.label}</p>
-                </div>
               </div>
               <div className="grid sm:grid-cols-4 gap-2 mt-4">
                 {SECTION_ACTIONS.map((action) => {
@@ -1855,39 +1845,6 @@ export default function Canvas() {
                     </div>
                     <div className="h-7 rounded-lg bg-indigo-600" />
                   </div>
-                </div>
-              </div>
-            </div>
-            <div className="border-t border-slate-100 bg-white p-5 text-slate-900 lg:border-l lg:border-t-0">
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Conversion checklist</p>
-                <span className="text-[10px] font-bold text-slate-400">{conversion.checks.filter((check) => check.passed).length}/{conversion.checks.length} done</span>
-              </div>
-              <div className="space-y-2 mb-4">
-                {conversion.checks.map((check) => (
-                  <div key={check.key} className="flex items-start gap-2 text-sm">
-                    <span className={`mt-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${check.passed ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                      {check.passed ? 'OK' : '!'}
-                    </span>
-                    <div>
-                      <p className={check.passed ? 'text-slate-700' : 'text-slate-900'}>{check.label}</p>
-                      {!check.passed && <p className="text-xs text-slate-500 mt-0.5">{check.hint}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-xs font-semibold text-slate-600 mb-2">Add an offer block</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {OFFER_PRESETS.map((offer) => (
-                    <button
-                      key={offer.id}
-                      onClick={(event) => { event.stopPropagation(); handleAddOffer(offer); }}
-                      className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 transition-all"
-                    >
-                      {offer.label}
-                    </button>
-                  ))}
                 </div>
               </div>
             </div>

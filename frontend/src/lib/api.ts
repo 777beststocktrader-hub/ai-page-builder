@@ -33,15 +33,6 @@ export async function generateFullPage(
   return { tagline: data.tagline || '', blocks: data.blocks || [] };
 }
 
-export async function analyzePageConversions(
-  pageGoal: string,
-  blockTypes: string[]
-): Promise<{ score: number; tips: { issue: string; fix: string; priority: string }[]; missing: string[] }> {
-  const { data } = await api.post('/ai/analyze', { pageGoal, blockTypes });
-  if (!data.success) throw new Error(data.error || 'Analysis failed');
-  return { score: data.score || 70, tips: data.tips || [], missing: data.missing || [] };
-}
-
 export async function generatePageTitle(goal: string): Promise<string> {
   const { data } = await api.post('/ai/title', { goal });
   if (!data.success) throw new Error(data.error || 'Title generation failed');
@@ -70,30 +61,6 @@ export async function createShareLink(html: string, title: string): Promise<stri
   return data.url as string;
 }
 
-export async function publishToWeb(html: string, title: string): Promise<{ url: string; slug: string }> {
-  const { data } = await api.post('/publish-web', { html, title });
-  if (!data.success) throw new Error('Failed to publish');
-  return { url: data.url, slug: data.slug };
-}
-
-export async function getMySites(): Promise<{ slug: string; title: string; publishedAt: string; updatedAt: string; views: number }[]> {
-  const { data } = await api.get('/my-sites');
-  return data.sites || [];
-}
-
-export async function deleteSite(slug: string): Promise<void> {
-  await api.delete(`/my-sites/${slug}`);
-}
-
-export async function importFromUrl(
-  url: string
-): Promise<{ pageGoal: string; companyName: string; tagline: string }> {
-  const { data } = await api.post('/ai/import-url', { url });
-  if (!data.success) throw new Error(data.error || 'Import failed');
-  return { pageGoal: data.pageGoal || '', companyName: data.companyName || '', tagline: data.tagline || '' };
-}
-
-
 export async function translatePage(
   blocks: Array<{ type: string; data: Record<string, any> }>,
   targetLanguage: string
@@ -101,14 +68,6 @@ export async function translatePage(
   const { data } = await api.post('/ai/translate', { blocks, targetLanguage });
   if (!data.success) throw new Error(data.error || 'Translation failed');
   return data.blocks;
-}
-
-export async function generateBrandPalette(
-  description: string
-): Promise<{ name: string; primaryColor: string; font: string; rationale: string }[]> {
-  const { data } = await api.post('/ai/brand-palette', { description });
-  if (!data.success) throw new Error(data.error || 'Palette generation failed');
-  return data.palettes || [];
 }
 
 export interface ShopifyProduct {
@@ -149,15 +108,4 @@ export async function generatePageFromProduct(
   const { data } = await api.post('/ai/generate-from-product', { product, shop: shop || '', reviews: reviews || [] });
   if (!data.success) throw new Error(data.error || 'Page generation failed');
   return { tagline: data.tagline || '', blocks: data.blocks || [], product: data.product };
-}
-
-export async function abTestHeadlines(
-  headline: string,
-  subheadline?: string,
-  primaryBtn?: string,
-  pageGoal?: string
-): Promise<{ label: string; angle: string; headline: string; subheadline: string; primaryBtn: string; improvement: string }[]> {
-  const { data } = await api.post('/ai/ab-test', { headline, subheadline, primaryBtn, pageGoal });
-  if (!data.success) throw new Error(data.error || 'A/B test failed');
-  return data.variants || [];
 }
