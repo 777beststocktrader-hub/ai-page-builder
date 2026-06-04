@@ -876,6 +876,10 @@ function DashboardStart({
   onTryDemo: () => void;
   onGenerate: (customGoal?: string) => void;
 }) {
+  const shopParam = new URLSearchParams(window.location.search).get('shop');
+  const savedShop = getShopifyCredentials()?.shop;
+  const hasShopify = !!(shopParam || savedShop);
+
   const steps = [
     { n: '1', title: 'Pick a product', body: 'Open your Shopify catalog and choose any product.', icon: <ShoppingBag size={18} /> },
     { n: '2', title: 'AI writes the page', body: 'PageGenie builds hero, benefits, reviews, FAQ, and CTA in seconds.', icon: <Sparkles size={18} /> },
@@ -901,15 +905,28 @@ function DashboardStart({
             Pick a product from your Shopify store. PageGenie writes the copy, builds every section, and publishes directly to your store.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <button
-              onClick={onChooseProduct}
-              disabled={generating}
-              className="group inline-flex items-center gap-2.5 rounded-2xl bg-indigo-600 px-7 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-900/40 transition-all hover:bg-indigo-500 hover:shadow-indigo-600/40 disabled:opacity-60"
-            >
-              <ShoppingBag size={16} />
-              Choose a Product
-              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </button>
+            {hasShopify ? (
+              <button
+                onClick={onChooseProduct}
+                disabled={generating}
+                className="group inline-flex items-center gap-2.5 rounded-2xl bg-indigo-600 px-7 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-900/40 transition-all hover:bg-indigo-500 hover:shadow-indigo-600/40 disabled:opacity-60"
+              >
+                <ShoppingBag size={16} />
+                Choose a Product
+                <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+              </button>
+            ) : (
+              <a
+                href="https://admin.shopify.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center gap-2.5 rounded-2xl bg-green-600 px-7 py-3.5 text-sm font-black text-white shadow-lg shadow-green-900/40 transition-all hover:bg-green-500"
+              >
+                <ShoppingBag size={16} />
+                Open in Shopify Admin
+                <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+              </a>
+            )}
             <button
               onClick={onTryDemo}
               disabled={generating}
@@ -920,7 +937,9 @@ function DashboardStart({
             </button>
           </div>
           {/* Trust line */}
-          <p className="mt-6 text-xs text-slate-600">15 reviews auto-filled · mobile preview · publishes to Shopify in 1 click</p>
+          <p className="mt-6 text-xs text-slate-600">
+            {hasShopify ? '15 reviews auto-filled · mobile preview · publishes to Shopify in 1 click' : 'Install PageGenie from the Shopify App Store, then open it from your admin'}
+          </p>
         </div>
       </div>
 
@@ -929,16 +948,22 @@ function DashboardStart({
         <div>
           <p className="mb-4 text-xs font-black uppercase tracking-widest text-slate-400">How it works</p>
           <div className="grid gap-3 sm:grid-cols-3">
-            {steps.map((s) => (
-              <div key={s.n} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            {steps.map((s, i) => (
+              <div key={s.n} className={`rounded-2xl border p-5 shadow-sm ${!hasShopify && i === 0 ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-white'}`}>
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl text-white ${!hasShopify && i === 0 ? 'bg-green-600' : 'bg-indigo-600'}`}>
                     {s.icon}
                   </div>
                   <span className="text-xs font-black text-slate-400">Step {s.n}</span>
                 </div>
                 <p className="text-sm font-black text-slate-900">{s.title}</p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">{s.body}</p>
+                {!hasShopify && i === 0 && (
+                  <a href="https://admin.shopify.com" target="_blank" rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-black text-green-700 hover:text-green-600">
+                    Open Shopify Admin <ArrowRight size={11} />
+                  </a>
+                )}
               </div>
             ))}
           </div>
