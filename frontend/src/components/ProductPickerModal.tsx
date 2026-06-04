@@ -184,8 +184,14 @@ export default function ProductPickerModal({ onClose }: Props) {
       setProducts(list);
       if (list.length === 0) setError('No active products found in your store.');
     } catch (err: any) {
+      const reinstall = err.response?.data?.reinstallUrl || '';
+      // If embedded in Shopify and session expired, auto-redirect silently
+      if (reinstall && (window !== window.top || new URLSearchParams(window.location.search).get('shop'))) {
+        window.location.href = reinstall;
+        return;
+      }
       setError(err.response?.data?.error || err.message || 'Failed to load products');
-      setReinstallUrl(err.response?.data?.reinstallUrl || '');
+      setReinstallUrl(reinstall);
     } finally {
       setLoading(false);
     }

@@ -161,6 +161,17 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', model: 'claude-opus-4-8' });
 });
 
+// ── Session check — used on app mount to detect expired sessions ──────────
+app.get('/api/session', async (req, res) => {
+  const shop = (req.query.shop as string || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  if (!shop) return res.json({ valid: false });
+  const session = await getSessionForShop(shop);
+  if (!session?.accessToken) {
+    return res.json({ valid: false, reinstallUrl: `/api/auth?shop=${shop}` });
+  }
+  res.json({ valid: true, shop });
+});
+
 // ── AI Content Generation ─────────────────────────────────────────────────
 app.use('/api/ai', aiRateLimit);
 app.post('/api/ai/generate', requireBilling, async (req, res) => {

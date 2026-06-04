@@ -164,7 +164,18 @@ export default function App() {
 
   useEffect(() => {
     const shop = new URLSearchParams(window.location.search).get('shop');
-    if (shop) saveShopifyCredentials(shop);
+    if (shop) {
+      saveShopifyCredentials(shop);
+      // Check if session is still valid. If not, silently redirect to re-auth.
+      fetch(`/api/session?shop=${encodeURIComponent(shop)}`)
+        .then(r => r.json())
+        .then((data: { valid: boolean; reinstallUrl?: string }) => {
+          if (!data.valid && data.reinstallUrl) {
+            window.location.href = data.reinstallUrl;
+          }
+        })
+        .catch(() => {});
+    }
     // Pre-warm the backend so Render's cold-start doesn't delay publish
     fetch('/api/health').catch(() => {});
   }, []);
