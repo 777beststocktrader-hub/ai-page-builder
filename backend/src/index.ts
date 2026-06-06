@@ -81,15 +81,15 @@ app.use((_req, res, next) => {
 
 // Content-Security-Policy for Shopify embedded app
 app.use((req, res, next) => {
-  const shop = req.query.shop as string;
-  if (shop) {
-    res.setHeader(
-      'Content-Security-Policy',
-      `frame-ancestors https://${shop} https://admin.shopify.com;`
-    );
-  } else {
-    res.setHeader('Content-Security-Policy', `frame-ancestors 'none';`);
-  }
+  const rawShop = Array.isArray(req.query.shop) ? req.query.shop[0] : req.query.shop;
+  const shop = typeof rawShop === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/.test(rawShop)
+    ? rawShop
+    : null;
+  const frameAncestors = shop
+    ? `https://${shop} https://admin.shopify.com`
+    : 'https://*.myshopify.com https://admin.shopify.com';
+
+  res.setHeader('Content-Security-Policy', `frame-ancestors ${frameAncestors};`);
   next();
 });
 
