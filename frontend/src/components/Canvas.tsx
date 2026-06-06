@@ -15,7 +15,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown, Monitor, Tablet, Smartphone, ShoppingBag, LayoutTemplate, Star, ShieldCheck } from 'lucide-react';
+import { GripVertical, Trash2, Copy, EyeOff, Code, Sparkles, Loader2, Wand2, ArrowRight, Zap, Languages, X, Lock, Unlock, ChevronUp, ChevronDown, Monitor, Tablet, Smartphone, ShoppingBag, LayoutTemplate, Star, ShieldCheck, UploadCloud, BarChart3, MousePointerClick, Layers3 } from 'lucide-react';
 import ProductPickerModal from './ProductPickerModal';
 import { usePageStore } from '../store/pageStore';
 import { getBlockDef } from '../blocks/blockDefs';
@@ -859,6 +859,293 @@ function PricingShowcase({ onTryDemo }: { onTryDemo: () => void }) {
   );
 }
 
+function DashboardStartV2({
+  generating,
+  goal,
+  setGoal,
+  inputRef,
+  onChooseProduct,
+  onTryDemo,
+  onGenerate,
+}: {
+  generating: boolean;
+  goal: string;
+  setGoal: (goal: string) => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+  onChooseProduct: () => void;
+  onTryDemo: () => void;
+  onGenerate: (customGoal?: string) => void;
+}) {
+  const shopParam = new URLSearchParams(window.location.search).get('shop');
+  const savedShop = getShopifyCredentials()?.shop;
+  const hasShopify = !!(shopParam || savedShop);
+
+  const examplePages = [
+    {
+      name: 'Glow Serum Launch',
+      label: 'Skincare',
+      accent: 'bg-emerald-500',
+      goal: 'Create a Shopify skincare launch page with ingredients, benefits, reviews, FAQ, and sticky buy buttons',
+      sections: ['Hero', 'Ingredients', 'Reviews', 'FAQ'],
+    },
+    {
+      name: 'Pearl Bloom Drop',
+      label: 'Jewelry',
+      accent: 'bg-amber-400',
+      goal: 'Create a premium handmade jewelry drop page with story, gallery, social proof, scarcity, and buy now CTA',
+      sections: ['Story', 'Gallery', 'Proof', 'Buy'],
+    },
+    {
+      name: 'Weekend Bundle',
+      label: 'Offer',
+      accent: 'bg-rose-500',
+      goal: 'Create a Shopify bundle offer page with savings, included products, objections answered, reviews, and CTA',
+      sections: ['Savings', 'Bundle', 'Objections', 'CTA'],
+    },
+    {
+      name: 'Boutique Edit',
+      label: 'Fashion',
+      accent: 'bg-sky-500',
+      goal: 'Create a fashion boutique collection landing page with lookbook, fit details, social proof, and shop CTA',
+      sections: ['Lookbook', 'Fit', 'Social', 'Shop'],
+    },
+  ];
+
+  const features = [
+    { icon: <Sparkles size={18} />, title: 'AI Page Builder', body: 'Prompt the page you need and get a complete Shopify-ready layout.' },
+    { icon: <UploadCloud size={18} />, title: 'Image Uploads', body: 'Use product photos as the source for polished sales sections.' },
+    { icon: <Layers3 size={18} />, title: 'Conversion Sections', body: 'Hero, benefits, reviews, FAQ, offers, and final CTA are planned together.' },
+    { icon: <MousePointerClick size={18} />, title: 'One-Click Publish', body: 'Preview, edit, and publish to Shopify without touching theme code.' },
+    { icon: <Wand2 size={18} />, title: 'Brand-Matched Copy', body: 'Rewrite sections in a sharper voice while keeping the buying path clear.' },
+    { icon: <BarChart3 size={18} />, title: 'Built To Test', body: 'Create new angles for launches, sales, bundles, and premium products.' },
+  ];
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-slate-100 text-slate-950 cursor-default">
+      <section className="bg-[#0b0b0b] text-white">
+        <div className="mx-auto grid max-w-7xl gap-6 px-5 py-7 sm:px-8 lg:grid-cols-[0.86fr_1.14fr] lg:px-10">
+          <div className="flex min-w-0 flex-col justify-between">
+            <div className="hidden items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm font-black">
+                <div className="flex h-8 w-8 items-center justify-center rounded bg-white text-slate-950">
+                  <Sparkles size={16} />
+                </div>
+                PageGenie
+              </div>
+              <div className="hidden items-center gap-5 text-xs font-bold text-slate-400 sm:flex">
+                <span>Examples</span>
+                <span>AI Builder</span>
+                <span>Publish</span>
+              </div>
+            </div>
+
+            <div className="py-4 lg:py-8">
+              <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-black uppercase text-slate-300">
+                <Sparkles size={13} />
+                AI-native Shopify page builder
+              </p>
+              <h1 className="max-w-2xl text-4xl font-black leading-[1.02] tracking-normal text-white sm:text-5xl lg:text-6xl">
+                Shopify pages built from a prompt.
+              </h1>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+                Upload product images or choose a Shopify product. PageGenie turns the product, offer, and reviews into a polished landing page ready to edit and publish.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={hasShopify ? onChooseProduct : onTryDemo}
+                  disabled={generating}
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded bg-white px-5 py-3 text-sm font-black text-slate-950 transition-all hover:bg-slate-200 disabled:opacity-60"
+                >
+                  {hasShopify ? <ShoppingBag size={16} /> : <Zap size={16} />}
+                  {hasShopify ? 'Choose Product' : 'Start With Demo'}
+                  <ArrowRight size={15} />
+                </button>
+                <button
+                  onClick={onTryDemo}
+                  disabled={generating}
+                  className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded border border-white/20 px-5 py-3 text-sm font-black text-white transition-all hover:bg-white/10 disabled:opacity-60"
+                >
+                  {generating ? <Loader2 size={15} className="animate-spin" /> : <Zap size={16} />}
+                  Try Demo
+                </button>
+              </div>
+
+              <div className="mt-6 grid max-w-xl grid-cols-3 border-y border-white/10">
+                {[
+                  ['Prompt', 'to page'],
+                  ['Shopify', 'catalog ready'],
+                  ['Mobile', 'preview built in'],
+                ].map(([value, label]) => (
+                  <div key={value} className="border-r border-white/10 py-4 pr-3 last:border-r-0">
+                    <p className="text-lg font-black text-white">{value}</p>
+                    <p className="mt-1 text-xs font-bold text-slate-500">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div id="pagegenie-examples" className="grid min-w-0 gap-3 sm:grid-cols-2 lg:content-center">
+            {examplePages.map((pageExample, index) => (
+              <button
+                key={pageExample.name}
+                onClick={() => { setGoal(pageExample.goal); inputRef.current?.focus(); }}
+                disabled={generating}
+                className={`group min-h-[182px] overflow-hidden rounded border border-white/10 bg-white text-left text-slate-950 shadow-2xl transition-all hover:-translate-y-1 hover:border-white disabled:opacity-60 ${index % 2 === 1 ? 'lg:translate-y-4' : ''}`}
+              >
+                <div className="border-b border-slate-100 px-4 py-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-rose-300" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase text-slate-400">{pageExample.label}</span>
+                  </div>
+                  <div className={`mb-3 h-14 rounded ${pageExample.accent}`} />
+                  <p className="text-base font-black leading-tight text-slate-950">{pageExample.name}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 p-3">
+                  {pageExample.sections.map((section) => (
+                    <span key={section} className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-bold text-slate-500">
+                      {section}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-5 py-4 sm:px-8 lg:px-10">
+          <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div className="flex min-h-[58px] items-center gap-3 rounded border border-slate-200 bg-slate-50 px-4">
+              <Sparkles size={18} className="flex-shrink-0 text-slate-500" />
+              <input
+                ref={inputRef}
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !generating) onGenerate(); }}
+                placeholder="Create a high-converting landing page for my skincare product with reviews, bundles, FAQ, and sticky buy buttons"
+                className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400"
+                disabled={generating}
+              />
+            </div>
+            <button
+              onClick={() => onGenerate()}
+              disabled={generating || !goal.trim()}
+              className="inline-flex min-h-[58px] items-center justify-center gap-2 rounded bg-slate-950 px-6 text-sm font-black text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {generating ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+              Build Page
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {QUICK_GOALS.slice(0, 5).map((quickGoal) => (
+              <button
+                key={quickGoal.label}
+                onClick={() => { setGoal(quickGoal.goal); inputRef.current?.focus(); }}
+                disabled={generating}
+                className="rounded border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-all hover:border-slate-950 hover:text-slate-950 disabled:opacity-50"
+              >
+                {quickGoal.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8 lg:px-10">
+        <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-xs font-black uppercase text-slate-500">How it works</p>
+            <h2 className="mt-3 max-w-md text-4xl font-black leading-none tracking-normal text-slate-950">
+              Easier than templates. Faster than hiring.
+            </h2>
+            <p className="mt-4 max-w-md text-sm leading-6 text-slate-600">
+              PageGenie starts with your product and builds the whole buying argument: headline, offer, visuals, benefits, proof, objections, and final CTA.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:flex-col">
+              <button
+                onClick={onChooseProduct}
+                disabled={generating}
+                className="inline-flex items-center justify-center gap-2 rounded bg-slate-950 px-5 py-3 text-sm font-black text-white transition-all hover:bg-slate-800 disabled:opacity-60"
+              >
+                <ShoppingBag size={16} />
+                Choose Product
+              </button>
+              <button
+                onClick={onTryDemo}
+                disabled={generating}
+                className="inline-flex items-center justify-center gap-2 rounded border border-slate-300 bg-transparent px-5 py-3 text-sm font-black text-slate-900 transition-all hover:border-slate-950 disabled:opacity-60"
+              >
+                <Zap size={16} />
+                Try Demo Product
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {features.map((feature) => (
+              <div key={feature.title} className="rounded border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded bg-slate-950 text-white">
+                  {feature.icon}
+                </div>
+                <h3 className="text-base font-black text-slate-950">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{feature.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-slate-200 bg-white">
+        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:px-8 lg:grid-cols-[1fr_0.9fr] lg:px-10">
+          <div>
+            <p className="text-xs font-black uppercase text-slate-500">Prompt</p>
+            <h2 className="mt-3 text-3xl font-black leading-tight tracking-normal text-slate-950">
+              "Create a premium product page with offer, proof, reviews, FAQ, and a strong checkout CTA."
+            </h2>
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              The result is not a blank template. It is a structured sales page with editable sections, real product context, and a Shopify publish path.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded border border-slate-200 bg-[#f7f7f4]">
+            <div className="border-b border-slate-200 bg-white px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-slate-500">Generated page</span>
+                <span className="rounded bg-emerald-100 px-2 py-1 text-[10px] font-black text-emerald-700">Ready</span>
+              </div>
+            </div>
+            <div className="grid gap-0 sm:grid-cols-[1fr_160px]">
+              <div className="p-5">
+                <div className="mb-3 flex gap-0.5 text-amber-400">
+                  {[1, 2, 3, 4, 5].map((star) => <Star key={star} size={13} fill="currentColor" />)}
+                </div>
+                <p className="mb-2 text-xs font-black uppercase text-slate-500">From Shopify product</p>
+                <h3 className="text-2xl font-black leading-tight text-slate-950">A page that explains why to buy now.</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">Hero, offer, benefits, proof, FAQ, and CTA are written as one buying journey.</p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <span className="rounded bg-slate-950 px-4 py-2 text-sm font-black text-white">Shop now</span>
+                  <span className="rounded border border-slate-300 px-4 py-2 text-sm font-black text-slate-800">Read reviews</span>
+                </div>
+              </div>
+              <div className="border-t border-slate-200 bg-white p-4 sm:border-l sm:border-t-0">
+                <img src={SAMPLE_PRODUCT.imageUrl} alt={SAMPLE_PRODUCT.name} className="aspect-square w-full rounded object-cover" />
+                <p className="mt-3 text-xs font-black text-slate-950">{SAMPLE_PRODUCT.name}</p>
+                <p className="mt-1 text-xs font-bold text-emerald-700">{SAMPLE_PRODUCT.price}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function DashboardStart({
   generating,
   goal,
@@ -1095,7 +1382,7 @@ function EmptyState() {
   return (
     <>
       {showProductPicker && <ProductPickerModal onClose={() => setShowProductPicker(false)} />}
-      <DashboardStart
+      <DashboardStartV2
         generating={generating}
         goal={goal}
         setGoal={setGoal}
