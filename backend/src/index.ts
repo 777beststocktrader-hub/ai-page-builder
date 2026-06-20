@@ -304,7 +304,13 @@ function normalizeVariantAvailability(variants: any[]) {
   };
 }
 
-function buildAvailabilityWarning(available: boolean, variantCount: number) {
+function buildAvailabilityWarning(available: boolean, variantCount: number, availableVariantCount?: number) {
+  if (available && availableVariantCount !== undefined && availableVariantCount < variantCount) {
+    const unavailableCount = Math.max(0, variantCount - availableVariantCount);
+    return unavailableCount > 1
+      ? `${unavailableCount} variants are unavailable. Check inventory tracking or click Fix availability after reconnecting Shopify.`
+      : '1 variant is unavailable. Check inventory tracking or click Fix availability after reconnecting Shopify.';
+  }
   if (available) return '';
   return variantCount > 1
     ? 'All variants are unavailable. Check inventory tracking or click Fix availability after reconnecting Shopify.'
@@ -347,7 +353,7 @@ async function fetchPublicShopifyProducts(shop: string) {
         available: availability.available,
         availableVariantCount: availability.availableVariantCount,
         variantAvailability: availability.variants,
-        availabilityWarning: buildAvailabilityWarning(availability.available, Array.isArray(p.variants) ? p.variants.length : 1),
+        availabilityWarning: buildAvailabilityWarning(availability.available, Array.isArray(p.variants) ? p.variants.length : 1, availability.availableVariantCount),
       };
     });
 }
@@ -520,7 +526,7 @@ app.get('/api/shopify/products', async (req, res) => {
           available: availability.available,
           availableVariantCount: availability.availableVariantCount,
           variantAvailability: availability.variants,
-          availabilityWarning: buildAvailabilityWarning(availability.available, variantCount),
+          availabilityWarning: buildAvailabilityWarning(availability.available, variantCount, availability.availableVariantCount),
         };
       });
 

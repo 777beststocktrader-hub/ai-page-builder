@@ -235,9 +235,12 @@ export default function ProductPickerModal({ onClose }: Props) {
     setGenerating('auto');
     setBuildStartedAt(Date.now());
     setBuildTick(Date.now());
-    const candidates = products.some((product) => product.available !== false)
-      ? products.filter((product) => product.available !== false)
-      : products;
+    const fullyAvailable = products.filter((product) =>
+      product.available !== false &&
+      (product.availableVariantCount === undefined || product.availableVariantCount >= product.variantCount)
+    );
+    const sellable = products.filter((product) => product.available !== false);
+    const candidates = fullyAvailable.length > 0 ? fullyAvailable : sellable.length > 0 ? sellable : products;
     const scored = candidates
       .map((p) => ({
         product: p,
@@ -285,6 +288,9 @@ export default function ProductPickerModal({ onClose }: Props) {
     const isGen = generating === product.id;
     const isFixing = fixingProductId === product.id;
     const isUnavailable = product.available === false;
+    const hasUnavailableVariants = !demo &&
+      product.availableVariantCount !== undefined &&
+      product.availableVariantCount < product.variantCount;
     const priceNum = parseFloat(product.price || '0');
     const hasDiscount = product.comparePrice && parseFloat(product.comparePrice) > priceNum;
     const discountPct = hasDiscount ? Math.round((1 - priceNum / parseFloat(product.comparePrice!)) * 100) : 0;
@@ -292,7 +298,7 @@ export default function ProductPickerModal({ onClose }: Props) {
     return (
       <div
         className={`relative text-left bg-slate-900 border rounded-xl overflow-hidden transition-all group ${
-          isGen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : isUnavailable ? 'border-orange-600/60' : 'border-slate-700 hover:border-indigo-500/60 hover:bg-slate-800/60'
+          isGen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : hasUnavailableVariants ? 'border-orange-600/60' : 'border-slate-700 hover:border-indigo-500/60 hover:bg-slate-800/60'
         } ${isAnyGenerating ? 'opacity-60' : ''}`}
       >
         <div className="aspect-video bg-slate-800 relative overflow-hidden">
@@ -304,7 +310,11 @@ export default function ProductPickerModal({ onClose }: Props) {
             </div>
           )}
           {demo && <div className="absolute top-2 left-2 bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">Demo</div>}
-          {!demo && isUnavailable && <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">Unavailable</div>}
+          {hasUnavailableVariants && (
+            <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {isUnavailable ? 'Unavailable' : 'Partial'}
+            </div>
+          )}
           {hasDiscount && <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">-{discountPct}%</div>}
           {isGen && (
             <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center">
@@ -345,7 +355,7 @@ export default function ProductPickerModal({ onClose }: Props) {
             </p>
           )}
           <div className="mt-3 grid gap-2">
-            {!demo && isUnavailable && (
+            {hasUnavailableVariants && (
               <button
                 type="button"
                 onClick={() => fixAvailability(product)}
