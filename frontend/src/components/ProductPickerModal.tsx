@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, ShoppingBag, Loader2, Sparkles, Search, Tag, AlertCircle, RefreshCw, ExternalLink, Star, Clock } from 'lucide-react';
-import { fetchShopifyProducts, generatePageFromProduct, ImportedReview, ShopifyProduct } from '../lib/api';
+import { fetchShopifyProducts, fixShopifyProductAvailability, generatePageFromProduct, ImportedReview, ShopifyProduct } from '../lib/api';
 import { getShopifyCredentials } from './ShopifyConnectModal';
 import { usePageStore } from '../store/pageStore';
 import BLOCK_DEFS from '../blocks/blockDefs';
@@ -136,6 +136,7 @@ export default function ProductPickerModal({ onClose }: Props) {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<number | 'auto' | null>(null);
+  const [fixingProductId, setFixingProductId] = useState<number | null>(null);
   const [buildStartedAt, setBuildStartedAt] = useState<number | null>(null);
   const [buildTick, setBuildTick] = useState(Date.now());
   const [error, setError] = useState('');
@@ -234,13 +235,41 @@ export default function ProductPickerModal({ onClose }: Props) {
     setGenerating('auto');
     setBuildStartedAt(Date.now());
     setBuildTick(Date.now());
-    const scored = products
+    const candidates = products.some((product) => product.available !== false)
+      ? products.filter((product) => product.available !== false)
+      : products;
+    const scored = candidates
       .map((p) => ({
         product: p,
         score: (p.description?.length || 0) * 0.3 + parseFloat(p.price || '0') * 0.7 + (p.image ? 25 : 0),
       }))
       .sort((a, b) => b.score - a.score);
     await buildPageForProduct(scored[0].product);
+  };
+
+  const fixAvailability = async (product: ShopifyProduct) => {
+    if (!shop) {
+      toast.error('Reconnect Shopify before fixing availability');
+      return;
+    }
+    setFixingProductId(product.id);
+    try {
+      const result = await fixShopifyProductAvailability(product, shop);
+      toast.success(
+        result.changedCount > 0
+          ? `Fixed ${result.changedCount} variant${result.changedCount === 1 ? '' : 's'}`
+          : 'Product availability already looked fixed'
+      );
+      await loadProducts();
+    } catch (err: any) {
+      const reinstall = err.response?.data?.reinstallUrl || '';
+      if (reinstall) setReinstallUrl(reinstall);
+      const message = err.response?.data?.error || err.message || 'Could not fix availability';
+      if (reinstall) setError(message);
+      toast.error(message);
+    } finally {
+      setFixingProductId(null);
+    }
   };
 
   const filtered = query.trim()
@@ -254,17 +283,17 @@ export default function ProductPickerModal({ onClose }: Props) {
 
   const ProductCard = ({ product, demo = false }: { product: ShopifyProduct; demo?: boolean }) => {
     const isGen = generating === product.id;
+    const isFixing = fixingProductId === product.id;
+    const isUnavailable = product.available === false;
     const priceNum = parseFloat(product.price || '0');
     const hasDiscount = product.comparePrice && parseFloat(product.comparePrice) > priceNum;
     const discountPct = hasDiscount ? Math.round((1 - priceNum / parseFloat(product.comparePrice!)) * 100) : 0;
 
     return (
-      <button
-        onClick={() => !isAnyGenerating && buildPageForProduct(product)}
-        disabled={isAnyGenerating}
+      <div
         className={`relative text-left bg-slate-900 border rounded-xl overflow-hidden transition-all group ${
-          isGen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : 'border-slate-700 hover:border-indigo-500/60 hover:bg-slate-800/60'
-        } disabled:cursor-not-allowed disabled:opacity-60`}
+          isGen ? 'border-indigo-500 ring-1 ring-indigo-500/50' : isUnavailable ? 'border-orange-600/60' : 'border-slate-700 hover:border-indigo-500/60 hover:bg-slate-800/60'
+        } ${isAnyGenerating ? 'opacity-60' : ''}`}
       >
         <div className="aspect-video bg-slate-800 relative overflow-hidden">
           {product.image ? (
@@ -275,6 +304,7 @@ export default function ProductPickerModal({ onClose }: Props) {
             </div>
           )}
           {demo && <div className="absolute top-2 left-2 bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">Demo</div>}
+          {!demo && isUnavailable && <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">Unavailable</div>}
           {hasDiscount && <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">-{discountPct}%</div>}
           {isGen && (
             <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center">
@@ -300,19 +330,52 @@ export default function ProductPickerModal({ onClose }: Props) {
                 {product.productType}
               </span>
             )}
-          </div>
-          {product.description && <p className="text-xs text-slate-500 line-clamp-2">{product.description}</p>}
-          <div className={`mt-3 w-full py-1.5 rounded-lg text-xs font-semibold text-center transition-all ${
-            isGen ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 group-hover:bg-indigo-600 group-hover:text-white border border-slate-700 group-hover:border-transparent'
-          }`}>
-            {isGen ? (
-              <span className="flex items-center justify-center gap-1.5"><Loader2 size={11} className="animate-spin" /> Generating...</span>
-            ) : (
-              <span className="flex items-center justify-center gap-1.5"><Sparkles size={11} /> {importedReviews.length ? 'Build With Reviews' : 'Build Best Landing Page'}</span>
+            {!demo && product.availableVariantCount !== undefined && (
+              <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                isUnavailable ? 'bg-orange-950/50 text-orange-300 border-orange-800/60' : 'bg-green-950/40 text-green-300 border-green-800/50'
+              }`}>
+                {product.availableVariantCount}/{product.variantCount} available
+              </span>
             )}
           </div>
+          {product.description && <p className="text-xs text-slate-500 line-clamp-2">{product.description}</p>}
+          {!demo && product.availabilityWarning && (
+            <p className="mt-2 rounded-lg border border-orange-800/50 bg-orange-950/25 px-2 py-1.5 text-[11px] leading-4 text-orange-200">
+              {product.availabilityWarning}
+            </p>
+          )}
+          <div className="mt-3 grid gap-2">
+            {!demo && isUnavailable && (
+              <button
+                type="button"
+                onClick={() => fixAvailability(product)}
+                disabled={isAnyGenerating || isFixing}
+                className="w-full rounded-lg border border-orange-700 bg-orange-500/15 py-1.5 text-xs font-semibold text-orange-200 transition-all hover:bg-orange-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isFixing ? (
+                  <span className="flex items-center justify-center gap-1.5"><Loader2 size={11} className="animate-spin" /> Fixing...</span>
+                ) : (
+                  'Fix availability'
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => !isAnyGenerating && buildPageForProduct(product)}
+              disabled={isAnyGenerating || isFixing}
+              className={`w-full py-1.5 rounded-lg text-xs font-semibold text-center transition-all ${
+                isGen ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 group-hover:bg-indigo-600 group-hover:text-white border border-slate-700 group-hover:border-transparent'
+              } disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              {isGen ? (
+                <span className="flex items-center justify-center gap-1.5"><Loader2 size={11} className="animate-spin" /> Generating...</span>
+              ) : (
+                <span className="flex items-center justify-center gap-1.5"><Sparkles size={11} /> {importedReviews.length ? 'Build With Reviews' : 'Build Best Landing Page'}</span>
+              )}
+            </button>
+          </div>
         </div>
-      </button>
+      </div>
     );
   };
 

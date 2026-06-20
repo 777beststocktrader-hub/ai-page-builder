@@ -163,13 +163,19 @@ app.get('/api/health', (_req, res) => {
 
 // ── Session check — used on app mount to detect expired sessions ──────────
 app.get('/api/session', async (req, res) => {
-  const shop = (req.query.shop as string || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const shop = normalizeShopDomain(req.query.shop);
   if (!shop) return res.json({ valid: false });
-  const session = await getSessionForShop(shop);
+  const adminShop = await resolveAdminShopDomain(shop);
+  const session = await getSessionForShop(adminShop);
   if (!session?.accessToken) {
-    return res.json({ valid: false, reinstallUrl: `/api/auth?shop=${shop}` });
+    return res.json({
+      valid: false,
+      shop,
+      adminShop,
+      reinstallUrl: reinstallUrlForShop(adminShop),
+    });
   }
-  res.json({ valid: true, shop });
+  res.json({ valid: true, shop, adminShop });
 });
 
 // ── AI Content Generation ─────────────────────────────────────────────────
@@ -227,9 +233,90 @@ function normalizePublicTags(value: unknown): string[] {
   return [];
 }
 
+const PUBLIC_SHOPIFY_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36';
+
+function normalizeShopDomain(value: unknown): string {
+  return String(value || '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/.*$/, '')
+    .toLowerCase();
+}
+
+function isMyshopifyDomain(shop: string): boolean {
+  return /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop);
+}
+
+function reinstallUrlForShop(shop: string): string | undefined {
+  return isMyshopifyDomain(shop) ? `/api/auth?shop=${shop}` : undefined;
+}
+
+async function resolveAdminShopDomain(shop: string): Promise<string> {
+  if (!shop || isMyshopifyDomain(shop)) return shop;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  try {
+    const metaResponse = await fetch(`https://${shop}/meta.json`, {
+      headers: { 'User-Agent': PUBLIC_SHOPIFY_USER_AGENT },
+      signal: controller.signal,
+    });
+    if (metaResponse.ok) {
+      const meta = await metaResponse.json() as { myshopify_domain?: string };
+      const metaShop = normalizeShopDomain(meta.myshopify_domain);
+      if (isMyshopifyDomain(metaShop)) return metaShop;
+    }
+
+    const response = await fetch(`https://${shop}`, {
+      headers: { 'User-Agent': PUBLIC_SHOPIFY_USER_AGENT },
+      signal: controller.signal,
+    });
+    const html = await response.text();
+    const match = html.match(/([a-z0-9][a-z0-9-]*\.myshopify\.com)/i);
+    return match?.[1]?.toLowerCase() || shop;
+  } catch {
+    return shop;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function normalizeVariantAvailability(variants: any[]) {
+  const shaped = (Array.isArray(variants) ? variants : [])
+    .map((variant) => ({
+      id: variant?.id,
+      title: variant?.title || variant?.option1 || 'Default',
+      available: variant?.available !== false && variant?.availableForSale !== false,
+      inventoryManagement: variant?.inventory_management || null,
+      inventoryPolicy: variant?.inventory_policy || variant?.inventoryPolicy || null,
+      inventoryQuantity: typeof variant?.inventory_quantity === 'number'
+        ? variant.inventory_quantity
+        : typeof variant?.inventoryQuantity === 'number'
+          ? variant.inventoryQuantity
+          : null,
+    }));
+
+  const availableCount = shaped.filter((variant) => variant.available).length;
+  return {
+    variants: shaped,
+    available: shaped.length === 0 || availableCount > 0,
+    availableVariantCount: availableCount,
+  };
+}
+
+function buildAvailabilityWarning(available: boolean, variantCount: number) {
+  if (available) return '';
+  return variantCount > 1
+    ? 'All variants are unavailable. Check inventory tracking or click Fix availability after reconnecting Shopify.'
+    : 'This product is unavailable. Check inventory tracking or click Fix availability after reconnecting Shopify.';
+}
+
 async function fetchPublicShopifyProducts(shop: string) {
   const response = await fetch(`https://${shop}/products.json?limit=50`, {
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': PUBLIC_SHOPIFY_USER_AGENT,
+    },
   });
 
   if (!response.ok) throw new Error(`Public products unavailable (${response.status})`);
@@ -243,6 +330,7 @@ async function fetchPublicShopifyProducts(shop: string) {
       const productImages = Array.isArray(p.images)
         ? p.images.map((image: any) => image?.src).filter((src: unknown): src is string => typeof src === 'string' && /^https?:\/\//i.test(src))
         : [];
+      const availability = normalizeVariantAvailability(Array.isArray(p.variants) ? p.variants : []);
       return {
         id: p.id,
         title: p.title,
@@ -256,17 +344,71 @@ async function fetchPublicShopifyProducts(shop: string) {
         images: productImages,
         handle: p.handle,
         variantCount: Array.isArray(p.variants) ? p.variants.length : 1,
+        available: availability.available,
+        availableVariantCount: availability.availableVariantCount,
+        variantAvailability: availability.variants,
+        availabilityWarning: buildAvailabilityWarning(availability.available, Array.isArray(p.variants) ? p.variants.length : 1),
       };
     });
 }
 
+async function shopifyAdminRest<T>(
+  shop: string,
+  accessToken: string,
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const apiVersion = process.env.SHOPIFY_API_VERSION || '2026-01';
+  const response = await fetch(`https://${shop}/admin/api/${apiVersion}${endpoint}`, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken,
+      ...(options.headers || {}),
+    },
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!response.ok) {
+    throw new Error(`Shopify REST error (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  return data as T;
+}
+
 app.get('/api/shopify/products', async (req, res) => {
   const tokenShop = getShopFromSessionToken(req);
-  const shop = tokenShop || (req.query.shop as string || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const shop = normalizeShopDomain(tokenShop || req.query.shop);
 
   if (!shop) return res.status(400).json({ success: false, error: 'shop required' });
 
-  const session = await getSessionForShop(shop);
+  let adminShop = shop;
+  let session = await getSessionForShop(adminShop);
+
+  if (!session?.accessToken && !isMyshopifyDomain(shop)) {
+    try {
+      const publicProducts = await fetchPublicShopifyProducts(shop);
+      if (publicProducts.length > 0) {
+        adminShop = await resolveAdminShopDomain(shop);
+        return res.json({
+          success: true,
+          products: publicProducts,
+          source: 'public-storefront',
+          shop,
+          adminShop,
+          warning: 'Using public storefront products. Reconnect Shopify admin access to publish pages.',
+        });
+      }
+    } catch (err: any) {
+      console.warn(`Public products fallback failed for ${shop}:`, err.message);
+    }
+
+    adminShop = await resolveAdminShopDomain(shop);
+    session = await getSessionForShop(adminShop);
+  }
+
   if (!session?.accessToken) {
     try {
       const publicProducts = await fetchPublicShopifyProducts(shop);
@@ -275,6 +417,8 @@ app.get('/api/shopify/products', async (req, res) => {
           success: true,
           products: publicProducts,
           source: 'public-storefront',
+          shop,
+          adminShop,
           warning: 'Using public storefront products. Reconnect Shopify admin access to publish pages.',
         });
       }
@@ -285,7 +429,8 @@ app.get('/api/shopify/products', async (req, res) => {
     return res.status(401).json({
       success: false,
       error: 'Not authenticated. Reinstall PageGenie from Shopify admin to reconnect products.',
-      reinstallUrl: `/api/auth?shop=${shop}`,
+      reinstallUrl: reinstallUrlForShop(adminShop),
+      requiresReconnect: true,
     });
   }
 
@@ -304,8 +449,12 @@ app.get('/api/shopify/products', async (req, res) => {
           featuredMedia?: { preview?: { image?: { url?: string } } } | null;
           variants: {
             nodes: Array<{
+              id: string;
               price: string;
               compareAtPrice?: string | null;
+              availableForSale?: boolean;
+              inventoryPolicy?: string | null;
+              inventoryQuantity?: number | null;
             }>;
           };
         }>;
@@ -334,8 +483,12 @@ app.get('/api/shopify/products', async (req, res) => {
               }
               variants(first: 50) {
                 nodes {
+                  id
                   price
                   compareAtPrice
+                  availableForSale
+                  inventoryPolicy
+                  inventoryQuantity
                 }
               }
             }
@@ -346,20 +499,30 @@ app.get('/api/shopify/products', async (req, res) => {
 
     const shaped = data.products.nodes
       .filter((p) => p.status === 'ACTIVE' || !p.status)
-      .map((p: any) => ({
-        id: Number(String(p.id).split('/').pop()) || p.id,
-        title: p.title,
-        description: (p.descriptionHtml || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500),
-        vendor: p.vendor || '',
-        productType: p.productType || '',
-        tags: Array.isArray(p.tags) ? p.tags : [],
-        price: p.variants?.nodes?.[0]?.price || '0.00',
-        comparePrice: p.variants?.nodes?.[0]?.compareAtPrice || null,
-        image: p.featuredMedia?.preview?.image?.url || null,
-        images: p.featuredMedia?.preview?.image?.url ? [p.featuredMedia.preview.image.url] : [],
-        handle: p.handle,
-        variantCount: p.variants?.nodes?.length || 1,
-      }));
+      .map((p: any) => {
+        const variants = Array.isArray(p.variants?.nodes) ? p.variants.nodes : [];
+        const availability = normalizeVariantAvailability(variants);
+        const variantCount = variants.length || 1;
+
+        return {
+          id: Number(String(p.id).split('/').pop()) || p.id,
+          title: p.title,
+          description: (p.descriptionHtml || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500),
+          vendor: p.vendor || '',
+          productType: p.productType || '',
+          tags: Array.isArray(p.tags) ? p.tags : [],
+          price: variants?.[0]?.price || '0.00',
+          comparePrice: variants?.[0]?.compareAtPrice || null,
+          image: p.featuredMedia?.preview?.image?.url || null,
+          images: p.featuredMedia?.preview?.image?.url ? [p.featuredMedia.preview.image.url] : [],
+          handle: p.handle,
+          variantCount,
+          available: availability.available,
+          availableVariantCount: availability.availableVariantCount,
+          variantAvailability: availability.variants,
+          availabilityWarning: buildAvailabilityWarning(availability.available, variantCount),
+        };
+      });
 
     res.json({ success: true, products: shaped });
   } catch (err: any) {
@@ -372,6 +535,8 @@ app.get('/api/shopify/products', async (req, res) => {
           products: publicProducts,
           source: 'public-storefront',
           warning: 'Using public storefront products because Shopify admin fetch failed.',
+          shop,
+          adminShop,
         });
       }
     } catch (fallbackErr: any) {
@@ -382,6 +547,100 @@ app.get('/api/shopify/products', async (req, res) => {
 });
 
 // ── AI Generate Page from Product ─────────────────────────────────────────
+app.post('/api/shopify/products/fix-availability', async (req, res) => {
+  const tokenShop = getShopFromSessionToken(req);
+  const shop = normalizeShopDomain(tokenShop || req.body.shop);
+  const handle = String(req.body.handle || '').trim();
+
+  if (!shop || !handle) {
+    return res.status(400).json({ success: false, error: 'shop and handle are required' });
+  }
+
+  const adminShop = await resolveAdminShopDomain(shop);
+  const session = await getSessionForShop(adminShop);
+  if (!session?.accessToken) {
+    return res.status(401).json({
+      success: false,
+      error: 'Reconnect PageGenie from Shopify admin before fixing product availability.',
+      shop,
+      adminShop,
+      reinstallUrl: reinstallUrlForShop(adminShop),
+      requiresReconnect: true,
+    });
+  }
+
+  try {
+    const lookup = await shopifyAdminRest<{ products?: any[] }>(
+      session.shop,
+      session.accessToken,
+      `/products.json?handle=${encodeURIComponent(handle)}`
+    );
+    const product = lookup.products?.[0];
+    if (!product) {
+      return res.status(404).json({ success: false, error: `No product found for handle "${handle}"` });
+    }
+
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const updated = [];
+
+    for (const variant of variants) {
+      const needsFix = variant.inventory_management || variant.inventory_policy !== 'continue';
+      if (!needsFix) {
+        updated.push({
+          id: variant.id,
+          title: variant.title,
+          changed: false,
+          inventory_management: variant.inventory_management || null,
+          inventory_policy: variant.inventory_policy || null,
+        });
+        continue;
+      }
+
+      const result = await shopifyAdminRest<{ variant: any }>(
+        session.shop,
+        session.accessToken,
+        `/variants/${variant.id}.json`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            variant: {
+              id: variant.id,
+              inventory_management: null,
+              inventory_policy: 'continue',
+            },
+          }),
+        }
+      );
+
+      updated.push({
+        id: result.variant?.id || variant.id,
+        title: result.variant?.title || variant.title,
+        changed: true,
+        inventory_management: result.variant?.inventory_management || null,
+        inventory_policy: result.variant?.inventory_policy || null,
+      });
+    }
+
+    res.json({
+      success: true,
+      product: { id: product.id, title: product.title, handle: product.handle },
+      variants: updated,
+      changedCount: updated.filter((variant) => variant.changed).length,
+    });
+  } catch (err: any) {
+    const message = err?.message || 'Failed to fix product availability';
+    const needsReconnect = /access|scope|forbidden|permission|write_products/i.test(message);
+    res.status(needsReconnect ? 403 : 500).json({
+      success: false,
+      error: needsReconnect
+        ? 'Reconnect PageGenie to approve product editing, then try Fix availability again.'
+        : message,
+      reinstallUrl: needsReconnect ? reinstallUrlForShop(adminShop) : undefined,
+      requiresReconnect: needsReconnect,
+    });
+  }
+});
+
 type GeneratedBlock = { type: string; data: Record<string, any> };
 type ImportedReview = { quote: string; name?: string; role?: string; rating?: number; imageUrl?: string };
 const REVIEW_TARGET_COUNT = 15;

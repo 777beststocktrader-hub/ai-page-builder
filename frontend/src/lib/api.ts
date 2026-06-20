@@ -83,6 +83,17 @@ export interface ShopifyProduct {
   images?: string[];
   handle: string;
   variantCount: number;
+  available?: boolean;
+  availableVariantCount?: number;
+  availabilityWarning?: string;
+  variantAvailability?: Array<{
+    id?: number | string;
+    title: string;
+    available: boolean;
+    inventoryManagement?: string | null;
+    inventoryPolicy?: string | null;
+    inventoryQuantity?: number | null;
+  }>;
 }
 
 export interface ImportedReview {
@@ -98,6 +109,21 @@ export async function fetchShopifyProducts(shop: string): Promise<ShopifyProduct
   const { data } = await api.get(`/shopify/products?${params}`);
   if (!data.success) throw new Error(data.error || 'Failed to fetch products');
   return data.products || [];
+}
+
+export async function fixShopifyProductAvailability(
+  product: ShopifyProduct,
+  shop?: string
+): Promise<{ changedCount: number; variants: Array<{ title: string; changed: boolean }> }> {
+  const { data } = await api.post('/shopify/products/fix-availability', {
+    shop: shop || '',
+    handle: product.handle,
+  });
+  if (!data.success) throw new Error(data.error || 'Failed to fix product availability');
+  return {
+    changedCount: data.changedCount || 0,
+    variants: data.variants || [],
+  };
 }
 
 export async function generatePageFromProduct(
